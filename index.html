@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExpenseAI - Smart Student Expense Tracker</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="light-mode">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-logo">💰</div>
+            <h2>ExpenseAI</h2>
+            <div class="loading-spinner"></div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto">ExpenseAI</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body"></div>
+        </div>
+    </div>
+
+    <!-- Authentication Pages -->
+    <div id="auth-container" class="auth-container">
+        <!-- Login Page -->
+        <div id="login-page" class="auth-page active">
+            <div class="container-fluid h-100">
+                <div class="row h-100">
+                    <div class="col-lg-6 auth-brand-side">
+                        <div class="auth-brand-content">
+                            <div class="brand-logo">💰</div>
+                            <h1>ExpenseAI</h1>
+                            <p class="brand-tagline">Smart expense tracking for students with AI-powered insights</p>
+                            <div class="feature-highlights">
+                                <div class="feature-item">
+                                    <i class="fas fa-robot"></i>
+                                    <span>AI-Powered Categorization</span>
+                                </div>
+                                <div class="feature-item">
+                                    <i class="fas fa-sms"></i>
+                                    <span>SMS Auto-Detection</span>
+                                </div>
+                                <div class="feature-item">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span>Smart Analytics</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6 auth-form-side">
+                        <div class="auth-form-container">
+                            <div class="auth-form-header">
+                                <h2>Welcome Back</h2>
+                                <p>Sign in to your ExpenseAI account</p>
+                            </div>
+                            <form id="login-form" class="auth-form">
+                                <div class="form-group">
+                                    <label for="login-email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="login-email" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="login-password" class="form-label">Password</label>
+                                    <div class="password-input">
+                                        <input type="password" class="form-control" id="login-password" required>
+                                        <button type="button" class="password-toggle">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="remember-me">
+                                    <label class="form-check-label" for="remember-me">Remember me</label>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-full-width">
+                                    <span class="btn-text">Sign In</span>
+                                    <span class="btn-spinner d-none">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    </span>
+                                </button>
+                                <div class="auth-links">
+                                    <a href="#" class="forgot-password">Forgot password?</a>
+                                    <p>Don't have an account? <a href="#" onclick="showRegister()">Sign up</a></p>
+                                </div>
+                            </form>
+                            <div class="social-login">
+                                <p class="social-divider">Or continue with</p>
+                                <div class="social-buttons">
+                                    <button class="btn btn-outline-primary social-btn">
+                                        <i class="fab fa-google"></i> Google
+                                    </button>
+                                    <button class="btn btn-outline-primary social-btn">
+                                        <i class="fab fa-facebook"></i> Facebook
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Register Page -->
+        <div id="register-page" class="auth-page">
+            <div class="container-fluid h-100">
+                <div class="row h-100">
+                    <div class="col-lg-6 auth-brand-side">
+                        <div class="auth-brand-content">
+                            <div class="brand-logo">💰</div>
+                            <h1>Join ExpenseAI</h1>
+                            <p class="brand-tagline">Start your journey to smarter financial management</p>
+                        </div>
+                    </div>
+                    <div class="col-lg-6 auth-form-side">
+                        <div class="auth-form-container">
+                            <div class="auth-form-header">
+                                <h2>Create Account</h2>
+                                <p>Sign up for your ExpenseAI account</p>
+                            </div>
+                            <form id="register-form" class="auth-form">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="first-name" class="form-label">First Name</label>
+                                            <input type="text" class="form-control" id="first-name" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="last-name" class="form-label">Last Name</label>
+                                            <input type="text" class="form-control" id="last-name" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="register-email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="register-email" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="college" class="form-label">College/University</label>
+                                    <input type="text" class="form-control" id="college" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="monthly-budget" class="form-label">Monthly Budget (₹)</label>
+                                    <input type="number" class="form-control" id="monthly-budget" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="register-password" class="form-label">Password</label>
+                                    <div class="password-input">
+                                        <input type="password" class="form-control" id="register-password" required>
+                                        <button type="button" class="password-toggle">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <div class="password-strength">
+                                        <div class="strength-meter">
+                                            <div class="strength-bar"></div>
+                                        </div>
+                                        <small class="strength-text">Password strength</small>
+                                    </div>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="terms" required>
+                                    <label class="form-check-label" for="terms">
+                                        I agree to the <a href="#" target="_blank">Terms & Conditions</a>
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-full-width">
+                                    <span class="btn-text">Create Account</span>
+                                    <span class="btn-spinner d-none">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    </span>
+                                </button>
+                                <div class="auth-links">
+                                    <p>Already have an account? <a href="#" onclick="showLogin()">Sign in</a></p>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app-container" class="app-container d-none">
+        <!-- Sidebar -->
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <span class="logo-icon">💰</span>
+                    <span class="logo-text">ExpenseAI</span>
+                </div>
+                <button class="sidebar-toggle d-lg-none">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="sidebar-menu">
+                <div class="menu-item active" data-page="dashboard">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </div>
+                <div class="menu-item" data-page="expenses">
+                    <i class="fas fa-receipt"></i>
+                    <span>Expenses</span>
+                </div>
+                <div class="menu-item" data-page="sms-parser">
+                    <i class="fas fa-sms"></i>
+                    <span>SMS Parser</span>
+                </div>
+                <div class="menu-item" data-page="budget">
+                    <i class="fas fa-wallet"></i>
+                    <span>Budget</span>
+                </div>
+                <div class="menu-item" data-page="analytics">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Analytics</span>
+                </div>
+                <div class="menu-item" data-page="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face" alt="Profile" class="profile-avatar">
+                    <div class="user-info">
+                        <span class="user-name">Arjun Sharma</span>
+                        <span class="user-role">Student</span>
+                    </div>
+                </div>
+                <button class="btn btn-outline-light btn-sm logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="sidebar-toggle d-lg-none">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <nav class="breadcrumb">
+                        <span id="page-title">Dashboard</span>
+                    </nav>
+                </div>
+                <div class="header-right">
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <div class="notification-bell">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge">3</span>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="showAddExpense()">
+                        <i class="fas fa-plus"></i> Add Expense
+                    </button>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <div class="page-content">
+                <!-- Dashboard Page -->
+                <div id="dashboard-page" class="page active">
+                    <div class="dashboard-header">
+                        <div class="welcome-section">
+                            <h1>Welcome back, Arjun! 👋</h1>
+                            <p class="welcome-subtitle">Here's your financial overview for September 2025</p>
+                        </div>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="row stats-cards">
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-rupee-sign"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3 id="total-spent">₹8,965</h3>
+                                    <p>Total Spent</p>
+                                    <small class="text-success">
+                                        <i class="fas fa-arrow-down"></i> 32% from last month
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-icon budget-icon">
+                                    <i class="fas fa-piggy-bank"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3 id="budget-remaining">₹6,035</h3>
+                                    <p>Budget Remaining</p>
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar" style="width: 60%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-icon transactions-icon">
+                                    <i class="fas fa-list"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3 id="transaction-count">42</h3>
+                                    <p>Transactions</p>
+                                    <small class="text-info">This month</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-icon savings-icon">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3 id="savings-achieved">₹6,035</h3>
+                                    <p>Savings Achieved</p>
+                                    <small class="text-success">40% of budget</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Section -->
+                    <div class="row charts-section">
+                        <div class="col-lg-8 mb-4">
+                            <div class="card chart-card">
+                                <div class="card-header">
+                                    <h5>Spending Trends</h5>
+                                    <div class="chart-controls">
+                                        <select class="form-select form-select-sm">
+                                            <option>Last 6 months</option>
+                                            <option>Last 12 months</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container" style="position: relative; height: 300px;">
+                                        <canvas id="spending-trends-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 mb-4">
+                            <div class="card chart-card">
+                                <div class="card-header">
+                                    <h5>Category Breakdown</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container" style="position: relative; height: 300px;">
+                                        <canvas id="category-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Transactions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Recent Transactions</h5>
+                            <a href="#" onclick="showPage('expenses')" class="btn btn-outline-primary btn-sm">View All</a>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Description</th>
+                                            <th>Category</th>
+                                            <th>Date</th>
+                                            <th>Amount</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recent-transactions">
+                                        <!-- Transactions will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Expenses Page -->
+                <div id="expenses-page" class="page">
+                    <div class="page-header">
+                        <h2>Expense Management</h2>
+                        <div class="page-actions">
+                            <button class="btn btn-outline-primary" onclick="exportExpenses()">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                            <button class="btn btn-primary" onclick="showAddExpense()">
+                                <i class="fas fa-plus"></i> Add Expense
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <label class="form-label">Date Range</label>
+                                    <input type="date" class="form-control" id="date-from">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">&nbsp;</label>
+                                    <input type="date" class="form-control" id="date-to">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Category</label>
+                                    <select class="form-select" id="category-filter">
+                                        <option value="">All Categories</option>
+                                        <!-- Options will be populated by JavaScript -->
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Amount Range</label>
+                                    <input type="text" class="form-control" placeholder="Min - Max" id="amount-filter">
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <input type="text" class="form-control" placeholder="Search transactions..." id="search-transactions">
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                                    <button class="btn btn-outline-secondary" onclick="clearFilters()">Clear</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Expenses Table -->
+                    <div class="card">
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0" id="expenses-table">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                <input type="checkbox" class="form-check-input" id="select-all">
+                                            </th>
+                                            <th>Date</th>
+                                            <th>Description</th>
+                                            <th>Category</th>
+                                            <th>Amount</th>
+                                            <th>Method</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="expenses-tbody">
+                                        <!-- Expenses will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SMS Parser Page -->
+                <div id="sms-parser-page" class="page">
+                    <div class="page-header">
+                        <h2>SMS Transaction Parser</h2>
+                        <button class="btn btn-primary" onclick="scanSMS()">
+                            <i class="fas fa-sync"></i> Scan Messages
+                        </button>
+                    </div>
+
+                    <!-- SMS Permission Status -->
+                    <div class="alert alert-info d-flex align-items-center" id="sms-permission-status">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <div>
+                            SMS reading permission is required to automatically detect transaction messages.
+                            <button class="btn btn-sm btn-outline-info ms-2" onclick="requestSMSPermission()">Grant Permission</button>
+                        </div>
+                    </div>
+
+                    <!-- Processing Status -->
+                    <div class="card mb-4 d-none" id="processing-status">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="progress flex-grow-1 me-3">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="sms-progress" style="width: 0%"></div>
+                                </div>
+                                <span id="progress-text">Processing...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SMS Messages -->
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5>Transaction Messages</h5>
+                            <div class="sms-stats">
+                                <span class="badge bg-primary me-2">Total: <span id="total-sms">5</span></span>
+                                <span class="badge bg-success me-2">Parsed: <span id="parsed-sms">0</span></span>
+                                <span class="badge bg-warning">Pending: <span id="pending-sms">5</span></span>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="sms-list" id="sms-list">
+                                <!-- SMS messages will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-success" onclick="processSelectedSMS()">
+                                <i class="fas fa-magic"></i> Process Selected
+                            </button>
+                            <button class="btn btn-outline-primary" onclick="selectAllSMS()">Select All</button>
+                            <button class="btn btn-outline-secondary" onclick="clearSelection()">Clear Selection</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Budget Page -->
+                <div id="budget-page" class="page">
+                    <div class="page-header">
+                        <h2>Budget Management</h2>
+                        <button class="btn btn-primary" onclick="showBudgetModal()">
+                            <i class="fas fa-plus"></i> Create Budget
+                        </button>
+                    </div>
+
+                    <!-- Budget Overview -->
+                    <div class="row budget-overview">
+                        <div class="col-lg-4 mb-4">
+                            <div class="card budget-summary">
+                                <div class="card-body text-center">
+                                    <div class="budget-circle">
+                                        <div class="circle-progress" data-progress="60">
+                                            <svg class="circle-chart" viewbox="0 0 33.83098862 33.83098862" width="120" height="120">
+                                                <circle class="circle-bg" stroke="var(--color-bg-1)" stroke-width="2" fill="none" cx="16.91549431" cy="16.91549431" r="15.91549431"></circle>
+                                                <circle class="circle-fill" stroke="var(--color-primary)" stroke-width="2" stroke-dasharray="60 40" stroke-dashoffset="25" fill="none" cx="16.91549431" cy="16.91549431" r="15.91549431"></circle>
+                                            </svg>
+                                            <div class="circle-text">
+                                                <span class="percentage">60%</span>
+                                                <small>Used</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <h4 class="mt-3">₹8,965 / ₹15,000</h4>
+                                    <p class="text-muted">Monthly Budget</p>
+                                    <div class="budget-actions">
+                                        <button class="btn btn-outline-primary btn-sm">Adjust Budget</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Category-wise Budget Tracking</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="budget-categories">
+                                        <!-- Budget categories will be populated by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Budget Insights -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Budget Insights & Recommendations</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="insight-item">
+                                        <div class="insight-icon text-success">
+                                            <i class="fas fa-thumbs-up"></i>
+                                        </div>
+                                        <div class="insight-content">
+                                            <h6>Great Progress!</h6>
+                                            <p>You're 40% under budget this month. Keep up the good work!</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="insight-item">
+                                        <div class="insight-icon text-warning">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                        </div>
+                                        <div class="insight-content">
+                                            <h6>Watch Food Expenses</h6>
+                                            <p>Food spending is 58% of budget. Consider home cooking more often.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Page -->
+                <div id="analytics-page" class="page">
+                    <div class="page-header">
+                        <h2>Analytics & Insights</h2>
+                        <div class="analytics-period">
+                            <select class="form-select">
+                                <option>This Month</option>
+                                <option>Last 3 Months</option>
+                                <option>Last 6 Months</option>
+                                <option>This Year</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- AI Insights -->
+                    <div class="card mb-4 ai-insights">
+                        <div class="card-header">
+                            <h5><i class="fas fa-robot me-2"></i>AI-Powered Insights</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row" id="ai-insights-list">
+                                <!-- AI insights will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analytics Charts -->
+                    <div class="row">
+                        <div class="col-lg-6 mb-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Spending Pattern Analysis</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container" style="position: relative; height: 300px;">
+                                        <canvas id="spending-pattern-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6 mb-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Monthly Comparison</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container" style="position: relative; height: 300px;">
+                                        <canvas id="monthly-comparison-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Spending Heatmap -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Daily Spending Heatmap</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="spending-heatmap" id="spending-heatmap">
+                                <!-- Heatmap will be generated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Page -->
+                <div id="settings-page" class="page">
+                    <div class="page-header">
+                        <h2>Settings</h2>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-lg-3">
+                            <div class="settings-nav">
+                                <div class="nav flex-column nav-pills">
+                                    <a class="nav-link active" data-bs-toggle="pill" href="#profile-settings">
+                                        <i class="fas fa-user"></i> Profile
+                                    </a>
+                                    <a class="nav-link" data-bs-toggle="pill" href="#security-settings">
+                                        <i class="fas fa-shield-alt"></i> Security
+                                    </a>
+                                    <a class="nav-link" data-bs-toggle="pill" href="#notification-settings">
+                                        <i class="fas fa-bell"></i> Notifications
+                                    </a>
+                                    <a class="nav-link" data-bs-toggle="pill" href="#preferences-settings">
+                                        <i class="fas fa-cog"></i> Preferences
+                                    </a>
+                                    <a class="nav-link" data-bs-toggle="pill" href="#data-settings">
+                                        <i class="fas fa-database"></i> Data & Privacy
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-9">
+                            <div class="tab-content">
+                                <!-- Profile Settings -->
+                                <div class="tab-pane fade show active" id="profile-settings">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>Profile Information</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <form id="profile-form">
+                                                <div class="row align-items-center mb-4">
+                                                    <div class="col-auto">
+                                                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face" alt="Profile" class="profile-photo">
+                                                    </div>
+                                                    <div class="col">
+                                                        <button type="button" class="btn btn-primary btn-sm">Change Photo</button>
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm ms-2">Remove</button>
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="form-group">
+                                                            <label class="form-label">First Name</label>
+                                                            <input type="text" class="form-control" value="Arjun">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="form-group">
+                                                            <label class="form-label">Last Name</label>
+                                                            <input type="text" class="form-control" value="Sharma">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label class="form-label">Email</label>
+                                                    <input type="email" class="form-control" value="arjun.sharma@college.edu">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label class="form-label">College/University</label>
+                                                    <input type="text" class="form-control" value="Indian Institute of Technology Delhi">
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="form-group">
+                                                            <label class="form-label">Course</label>
+                                                            <input type="text" class="form-control" value="Computer Science & Engineering">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="form-group">
+                                                            <label class="form-label">Year</label>
+                                                            <select class="form-select">
+                                                                <option>1st Year</option>
+                                                                <option selected>2nd Year</option>
+                                                                <option>3rd Year</option>
+                                                                <option>4th Year</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label class="form-label">Monthly Budget (₹)</label>
+                                                    <input type="number" class="form-control" value="15000">
+                                                </div>
+                                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Security Settings -->
+                                <div class="tab-pane fade" id="security-settings">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>Security Settings</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="security-option">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h6>Two-Factor Authentication</h6>
+                                                        <p class="text-muted mb-0">Add an extra layer of security to your account</p>
+                                                    </div>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" id="2fa-toggle">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <hr>
+                                            <div class="security-option">
+                                                <h6>Change Password</h6>
+                                                <form class="mt-3">
+                                                    <div class="form-group">
+                                                        <label class="form-label">Current Password</label>
+                                                        <input type="password" class="form-control">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label class="form-label">New Password</label>
+                                                        <input type="password" class="form-control">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label class="form-label">Confirm New Password</label>
+                                                        <input type="password" class="form-control">
+                                                    </div>
+                                                    <button type="submit" class="btn btn-primary">Update Password</button>
+                                                </form>
+                                            </div>
+                                            <hr>
+                                            <div class="security-option">
+                                                <h6>Login Activity</h6>
+                                                <div class="login-activity">
+                                                    <div class="activity-item">
+                                                        <i class="fas fa-mobile-alt text-success"></i>
+                                                        <div class="activity-info">
+                                                            <strong>Current Session</strong>
+                                                            <span>Mobile • Chrome • Delhi, India</span>
+                                                            <small class="text-muted">Active now</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Notification Settings -->
+                                <div class="tab-pane fade" id="notification-settings">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>Notification Preferences</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="notification-setting">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h6>Budget Alerts</h6>
+                                                        <p class="text-muted mb-0">Get notified when you're close to your budget limit</p>
+                                                    </div>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" checked>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <hr>
+                                            <div class="notification-setting">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h6>Transaction Confirmations</h6>
+                                                        <p class="text-muted mb-0">Receive notifications for new transactions</p>
+                                                    </div>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" checked>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <hr>
+                                            <div class="notification-setting">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h6>Weekly Reports</h6>
+                                                        <p class="text-muted mb-0">Get weekly spending summaries via email</p>
+                                                    </div>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Preferences Settings -->
+                                <div class="tab-pane fade" id="preferences-settings">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>App Preferences</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="form-group">
+                                                <label class="form-label">Theme</label>
+                                                <select class="form-select">
+                                                    <option>Light Mode</option>
+                                                    <option>Dark Mode</option>
+                                                    <option selected>Auto (System)</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label">Currency</label>
+                                                <select class="form-select">
+                                                    <option selected>Indian Rupee (₹)</option>
+                                                    <option>US Dollar ($)</option>
+                                                    <option>Euro (€)</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label">Date Format</label>
+                                                <select class="form-select">
+                                                    <option selected>DD/MM/YYYY</option>
+                                                    <option>MM/DD/YYYY</option>
+                                                    <option>YYYY-MM-DD</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label">Language</label>
+                                                <select class="form-select">
+                                                    <option selected>English</option>
+                                                    <option>Hindi</option>
+                                                    <option>Tamil</option>
+                                                    <option>Bengali</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Data Settings -->
+                                <div class="tab-pane fade" id="data-settings">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>Data & Privacy</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="data-option">
+                                                <h6>Export Data</h6>
+                                                <p class="text-muted">Download all your financial data</p>
+                                                <button class="btn btn-outline-primary">Export All Data</button>
+                                            </div>
+                                            <hr>
+                                            <div class="data-option">
+                                                <h6>Delete Account</h6>
+                                                <p class="text-muted">Permanently delete your account and all data</p>
+                                                <button class="btn btn-outline-danger">Delete Account</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Expense Modal -->
+    <div class="modal fade" id="addExpenseModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Expense</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-expense-form">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Amount (₹)</label>
+                                    <input type="number" class="form-control" id="expense-amount" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Date</label>
+                                    <input type="date" class="form-control" id="expense-date" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <input type="text" class="form-control" id="expense-description" required>
+                            <div class="ai-suggestion" id="ai-category-suggestion">
+                                <!-- AI category suggestion will appear here -->
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Category</label>
+                                    <select class="form-select" id="expense-category" required>
+                                        <!-- Categories will be populated by JavaScript -->
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Payment Method</label>
+                                    <select class="form-select" id="payment-method" required>
+                                        <option value="UPI">UPI</option>
+                                        <option value="Card">Credit/Debit Card</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="Bank Transfer">Bank Transfer</option>
+                                        <option value="Wallet">Digital Wallet</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Receipt (Optional)</label>
+                            <input type="file" class="form-control" accept="image/*">
+                            <small class="text-muted">Upload a photo of your receipt</small>
+                        </div>
+                        <div class="budget-impact" id="budget-impact">
+                            <!-- Budget impact will be shown here -->
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" form="add-expense-form" class="btn btn-primary">Add Expense</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
