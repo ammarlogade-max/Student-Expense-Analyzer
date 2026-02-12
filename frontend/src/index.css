@@ -1,0 +1,106 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700;800&display=swap");
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  font-family: "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --bg-base: #f8fafc;
+  --bg-panel: #ffffff;
+  --bg-muted: #f1f5f9;
+  --text-base: #0f172a;
+  --text-muted: #64748b;
+  --border-base: #e2e8f0;
+  --shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+body.dark {
+  color-scheme: dark;
+  --bg-base: #0b1120;
+  --bg-panel: #0f172a;
+  --bg-muted: #111827;
+  --text-base: #e2e8f0;
+  --text-muted: #94a3b8;
+  --border-base: #1f2937;
+  --shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.4);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(
+      circle at top left,
+      #ecfdf3 0%,
+      #f8fafc 45%
+    ),
+    linear-gradient(120deg, #f8fafc 0%, #eef2ff 100%);
+  color: var(--text-base);
+  transition: background 200ms ease, color 200ms ease;
+}
+
+body.dark {
+  background: radial-gradient(
+      circle at top left,
+      rgba(16, 185, 129, 0.1) 0%,
+      #0b1120 45%
+    ),
+    linear-gradient(120deg, #0b1120 0%, #0f172a 100%);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.panel {
+  background: var(--bg-panel);
+  border-color: var(--border-base);
+  box-shadow: var(--shadow-soft);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.focus-ring:focus {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
+}
+
+body.dark .bg-white {
+  background-color: var(--bg-panel) !important;
+}
+
+body.dark .bg-slate-50,
+body.dark .bg-slate-100 {
+  background-color: var(--bg-muted) !important;
+}
+
+body.dark .text-slate-900,
+body.dark .text-slate-800,
+body.dark .text-slate-700 {
+  color: var(--text-base) !important;
+}
+
+body.dark .text-slate-500,
+body.dark .text-slate-400 {
+  color: var(--text-muted) !important;
+}
+
+body.dark .border-slate-200,
+body.dark .border-slate-100 {
+  border-color: var(--border-base) !important;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fade-in 300ms ease;
+}

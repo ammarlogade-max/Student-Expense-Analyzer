@@ -1,0 +1,10 @@
+{
+  "data_path": "bank_sms_data.csv",
+  "artifacts_dir": "artifacts",
+  "model_dir": "artifacts/models",
+  "metrics_dir": "artifacts/metrics",
+  "random_state": 42,
+  "test_size": 0.15,
+  "val_size": 0.15,
+  "min_rows_per_class": 3
+}
