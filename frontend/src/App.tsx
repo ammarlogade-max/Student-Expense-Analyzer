@@ -4,15 +4,19 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Expenses from "./pages/Expenses";
 import Analytics from "./pages/Analytics";
-import Budget from "./pages/Budget";
+import BudgetPage from "./pages/Budget";
 import SmsParser from "./pages/SmsParser";
 import Settings from "./pages/Settings";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
+import Cash from "./pages/Cash";
+import Score from "./pages/Score";
+import BackendStatusBanner from "./components/BackendStatusBanner";
 
 function App() {
   return (
     <BrowserRouter>
+      <BackendStatusBanner />
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
@@ -28,7 +32,9 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/expenses" element={<Expenses />} />
           <Route path="/analytics" element={<Analytics />} />
-          <Route path="/budget" element={<Budget />} />
+          <Route path="/budget" element={<BudgetPage />} />
+          <Route path="/score" element={<Score />} />
+          <Route path="/cash" element={<Cash />} />
           <Route path="/sms-parser" element={<SmsParser />} />
           <Route path="/settings" element={<Settings />} />
         </Route>

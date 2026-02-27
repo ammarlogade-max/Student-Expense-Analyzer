@@ -1,333 +1,364 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
+  Line, LineChart, ReferenceLine,
+  ResponsiveContainer, Tooltip, XAxis, YAxis
 } from "recharts";
-import { getExpenses, getMonthlySummary } from "../lib/api";
+import { getExpenses } from "../lib/api";
+import { getBudget, getBudgetStatus, updateBudget } from "../lib/api";
 import type { Expense } from "../lib/types";
+import type { Budget as BudgetConfig, BudgetStatus } from "../lib/api";
+import { useToast } from "../context/ToastContext";
 
-const STORAGE_KEY = "sea_budget_limit";
-const CATEGORY_KEY = "sea_category_budgets";
 const categories = [
-  "Food",
-  "Transport",
-  "Housing",
-  "Education",
-  "Entertainment",
-  "Health",
-  "Other"
+  "Food", "Shopping", "Transport", "Housing",
+  "Education", "Entertainment", "Health", "Other"
 ];
 
-const Budget = () => {
-  const [limit, setLimit] = useState<number>(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? Number(raw) : 500;
-  });
-  const [categoryBudgets, setCategoryBudgets] = useState<Record<string, number>>(
-    () => {
-      const raw = localStorage.getItem(CATEGORY_KEY);
-      if (!raw) {
-        return Object.fromEntries(categories.map((c) => [c, 100]));
-      }
-      try {
-        return JSON.parse(raw);
-      } catch {
-        return Object.fromEntries(categories.map((c) => [c, 100]));
-      }
-    }
-  );
-  const [total, setTotal] = useState(0);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
+const catEmoji: Record<string, string> = {
+  Food: "🍔", Shopping: "🛍️", Transport: "🚇", Housing: "🏠",
+  Education: "📚", Entertainment: "🎬", Health: "💊", Other: "📦"
+};
 
-  useEffect(() => {
-    let active = true;
-    async function load() {
-      setLoading(true);
-      try {
-        const [summaryRes, expensesRes] = await Promise.all([
-          getMonthlySummary(),
-          getExpenses()
-        ]);
-        if (!active) return;
-        setTotal(summaryRes.summary.total);
-        setExpenses(expensesRes.expenses);
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      active = false;
-    };
-  }, []);
+const catColors: Record<string, string> = {
+  Food: "#c8ff00", Shopping: "#00e5c3", Transport: "#ffb930",
+  Housing: "#f97316", Education: "#60a5fa", Entertainment: "#a78bfa",
+  Health: "#ff4d6d", Other: "#6b7a99"
+};
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, String(limit));
-  }, [limit]);
+function toneColor(pct: number) {
+  if (pct >= 90) return "var(--rose)";
+  if (pct >= 70) return "var(--amber)";
+  return "var(--lime)";
+}
 
-  useEffect(() => {
-    localStorage.setItem(CATEGORY_KEY, JSON.stringify(categoryBudgets));
-  }, [categoryBudgets]);
-
-  const percentUsed = useMemo(() => {
-    if (limit <= 0) return 0;
-    return Math.min(100, (total / limit) * 100);
-  }, [limit, total]);
-
-  const remaining = limit - total;
-
-  const tone =
-    percentUsed >= 90 ? "rose" : percentUsed >= 70 ? "amber" : "emerald";
-
-  const { series, forecastTotal } = useMemo(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    const dailyTotals = new Array(daysInMonth).fill(0);
-    expenses.forEach((expense) => {
-      const date = new Date(expense.createdAt);
-      if (date.getFullYear() === year && date.getMonth() === month) {
-        const day = date.getDate();
-        dailyTotals[day - 1] += expense.amount;
-      }
-    });
-
-    let cumulative = 0;
-    const data = dailyTotals.map((value, index) => {
-      cumulative += value;
-      return {
-        day: index + 1,
-        actual: Number(cumulative.toFixed(2))
-      };
-    });
-
-    const today = now.getDate();
-    const todayTotal = data[today - 1]?.actual ?? cumulative;
-    const dailyAvg = today ? todayTotal / today : 0;
-    const projected = dailyAvg * daysInMonth;
-
-    const forecastSeries = data.map((point) => ({
-      ...point,
-      forecast: Number((dailyAvg * point.day).toFixed(2))
-    }));
-
-    return { series: forecastSeries, forecastTotal: projected };
-  }, [expenses]);
-
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
   return (
-    <div className="space-y-6">
-      <section className="rounded-3xl bg-gradient-to-r from-emerald-500 via-amber-400 to-orange-400 p-6 text-white shadow-xl">
-        <p className="text-xs uppercase tracking-[0.3em] text-white/70">
-          Budget System
+    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-hi)", borderRadius: 12, padding: "10px 14px" }}>
+      <p style={{ color: "var(--text-muted)", fontSize: 11, marginBottom: 4 }}>Day {label}</p>
+      {payload.map((p: any) => (
+        <p key={p.dataKey} style={{ color: p.stroke, fontWeight: 700, fontSize: 14 }}>
+          {p.name}: ₹{p.value}
         </p>
-        <h2 className="mt-2 text-3xl md:text-4xl font-semibold">
-          Stay in control with smart limits.
-        </h2>
-        <p className="mt-2 max-w-2xl text-sm text-white/80">
-          Monitor spending against your monthly target and get real-time
-          warnings as you approach your cap.
-        </p>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold">Set Monthly Budget</h3>
-          <p className="text-sm text-slate-500">
-            Adjust anytime. We use it to calculate your remaining balance.
-          </p>
-          <div className="mt-6">
-            <label className="text-sm font-medium">Monthly limit</label>
-            <input
-              type="number"
-              min="0"
-              value={limit}
-              onChange={(e) => setLimit(Number(e.target.value))}
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:border-emerald-400 focus:outline-none"
-            />
-          </div>
-          <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-600">
-            Your budget powers insights across Dashboard, Analytics, and
-            Expenses.
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold">Budget Status</h3>
-          <div className="mt-6 space-y-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                Total spent
-              </p>
-              <p className="text-3xl font-semibold text-slate-900">
-                ₹{total.toFixed(2)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                Remaining
-              </p>
-              <p className="text-2xl font-semibold text-slate-800">
-                ₹{remaining.toFixed(2)}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>Usage</span>
-                <span>{percentUsed.toFixed(1)}%</span>
-              </div>
-              <div className="h-3 w-full rounded-full bg-slate-100">
-                <div
-                  className={`h-3 rounded-full ${
-                    tone === "rose"
-                      ? "bg-rose-500"
-                      : tone === "amber"
-                      ? "bg-amber-400"
-                      : "bg-emerald-500"
-                  }`}
-                  style={{ width: `${percentUsed}%` }}
-                />
-              </div>
-            </div>
-            <div
-              className={`rounded-2xl border px-4 py-3 text-sm ${
-                tone === "rose"
-                  ? "border-rose-200 bg-rose-50 text-rose-700"
-                  : tone === "amber"
-                  ? "border-amber-200 bg-amber-50 text-amber-700"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-700"
-              }`}
-            >
-              {loading
-                ? "Loading summary..."
-                : tone === "rose"
-                ? "You are very close to your budget limit. Consider pausing big purchases."
-                : tone === "amber"
-                ? "You are approaching your limit. Keep an eye on discretionary spending."
-                : "You are within a healthy range. Keep it up!"}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold">Category Budgets</h3>
-        <p className="text-sm text-slate-500">
-          Allocate budgets per category and monitor thresholds.
-        </p>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          {categories.map((category) => {
-            const value = categoryBudgets[category] ?? 0;
-            const over = value <= 0;
-            return (
-              <div
-                key={category}
-                className="rounded-2xl border border-slate-100 bg-slate-50 p-4"
-              >
-                <div className="flex items-center justify-between text-sm font-semibold">
-                  <span>{category}</span>
-                  <span>₹{value}</span>
-                </div>
-                <input
-                  type="number"
-                  min="0"
-                  value={value}
-                  onChange={(e) =>
-                    setCategoryBudgets({
-                      ...categoryBudgets,
-                      [category]: Math.max(0, Number(e.target.value) || 0)
-                    })
-                  }
-                  className="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                  placeholder={`Type ${category} limit`}
-                />
-                <input
-                  type="range"
-                  min="0"
-                  max="1000"
-                  value={value}
-                  onChange={(e) =>
-                    setCategoryBudgets({
-                      ...categoryBudgets,
-                      [category]: Number(e.target.value)
-                    })
-                  }
-                  className="mt-3 w-full"
-                />
-                {over && (
-                  <p className="mt-2 text-xs text-rose-600">
-                    Set a budget to activate alerts.
-                  </p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h3 className="text-lg font-semibold">Budget vs Actual</h3>
-            <p className="text-sm text-slate-500">
-              Forecast based on current month daily average.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-2 text-sm text-slate-600">
-            Forecast end-of-month:{" "}
-            <span className="font-semibold text-slate-900">
-              ₹{forecastTotal.toFixed(2)}
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-6 h-72">
-          {loading ? (
-            <div className="h-full rounded-2xl bg-slate-100 animate-pulse" />
-          ) : series.length === 0 ? (
-            <div className="grid h-full place-items-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-500">
-              Add expenses to see forecasting trends.
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={series}>
-                <XAxis dataKey="day" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="actual"
-                  stroke="#10b981"
-                  strokeWidth={3}
-                  dot={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="forecast"
-                  stroke="#f59e0b"
-                  strokeWidth={2}
-                  strokeDasharray="6 6"
-                  dot={false}
-                />
-                <ReferenceLine
-                  y={limit}
-                  stroke="#ef4444"
-                  strokeDasharray="4 4"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      </section>
+      ))}
     </div>
   );
 };
 
-export default Budget;
+const BudgetPage = () => {
+  const { push } = useToast();
+  const [budget, setBudget] = useState<BudgetConfig | null>(null);
+  const [status, setStatus] = useState<BudgetStatus | null>(null);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [limitInput, setLimitInput] = useState("");
+  const [categoryInputs, setCategoryInputs] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [bRes, sRes, eRes] = await Promise.allSettled([
+        getBudget(), getBudgetStatus(), getExpenses()
+      ]);
+      if (bRes.status === "fulfilled") {
+        const b = bRes.value.budget;
+        setBudget(b);
+        setLimitInput(String(b.monthlyLimit));
+        const inputs: Record<string, string> = {};
+        categories.forEach((cat) => { inputs[cat] = String(b.categoryBudgets[cat] ?? 0); });
+        setCategoryInputs(inputs);
+      }
+      if (sRes.status === "fulfilled") setStatus(sRes.value.status);
+      if (eRes.status === "fulfilled") setExpenses(eRes.value.expenses);
+    } catch { push("Failed to load budget", "error"); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 640px)");
+    const apply = () => setIsMobile(media.matches);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+
+  const saveMonthlyLimit = async () => {
+    const v = Number(limitInput);
+    if (isNaN(v) || v < 0) { push("Enter a valid amount", "error"); return; }
+    setSaving(true);
+    try {
+      const res = await updateBudget({ monthlyLimit: v });
+      setBudget(res.budget);
+      const sRes = await getBudgetStatus();
+      setStatus(sRes.status);
+      push("Budget saved ✓", "success");
+    } catch { push("Failed to save", "error"); }
+    finally { setSaving(false); }
+  };
+
+  const saveCategoryBudgets = async () => {
+    const parsed: Record<string, number> = {};
+    Object.entries(categoryInputs).forEach(([k, v]) => { parsed[k] = Math.max(0, Number(v) || 0); });
+    setSaving(true);
+    try {
+      const res = await updateBudget({ categoryBudgets: parsed });
+      setBudget(res.budget);
+      const sRes = await getBudgetStatus();
+      setStatus(sRes.status);
+      push("Categories saved ✓", "success");
+    } catch { push("Failed to save", "error"); }
+    finally { setSaving(false); }
+  };
+
+  const { series, forecastTotal } = useMemo(() => {
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const dailyTotals = new Array(daysInMonth).fill(0);
+    expenses.forEach((e) => {
+      const d = new Date(e.createdAt);
+      if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+        dailyTotals[d.getDate() - 1] += e.amount;
+      }
+    });
+    let cum = 0;
+    const data = dailyTotals.map((v, i) => { cum += v; return { day: i + 1, actual: Number(cum.toFixed(2)) }; });
+    const today = now.getDate();
+    const todayTotal = data[today - 1]?.actual ?? cum;
+    const dailyAvg = today ? todayTotal / today : 0;
+    const forecast = dailyAvg * daysInMonth;
+    const series = data.map((p) => ({ ...p, forecast: Number((dailyAvg * p.day).toFixed(2)) }));
+    return { series, forecastTotal: forecast };
+  }, [expenses]);
+
+  const limit = budget?.monthlyLimit ?? 0;
+  const spent = status?.totalSpent ?? 0;
+  const pct = status?.percentUsed ?? 0;
+  const remaining = status?.remaining ?? 0;
+  const color = toneColor(pct);
+
+  return (
+    <div className="space-y-5 stagger">
+
+      {/* ── Overview hero ─────────────────────────────────────── */}
+      <div className="card p-6 animate-fade-up" style={{
+        background: "linear-gradient(135deg, rgba(200,255,0,0.07) 0%, rgba(0,229,195,0.04) 60%, var(--bg-card) 100%)",
+        border: "1px solid rgba(200,255,0,0.12)"
+      }}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] mb-2" style={{ color: "var(--text-muted)" }}>
+              Monthly Budget
+            </p>
+            {loading ? (
+              <div className="skeleton h-12 w-40 rounded-xl" />
+            ) : (
+              <p className="font-black leading-none" style={{ fontFamily: "var(--font-display)", color, fontSize: "clamp(2rem, 8vw, 3rem)" }}>
+                ₹{spent.toLocaleString("en-IN")}
+              </p>
+            )}
+            <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
+              of ₹{limit.toLocaleString("en-IN")} limit
+            </p>
+          </div>
+          <div className="sm:text-right">
+            <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>Remaining</p>
+            <p className="font-bold leading-tight" style={{ fontFamily: "var(--font-display)", color: remaining < 0 ? "var(--rose)" : "var(--lime)", fontSize: "clamp(1.375rem, 6vw, 1.875rem)" }}>
+              {loading ? "—" : `₹${Math.abs(remaining).toLocaleString("en-IN")}`}
+            </p>
+            {remaining < 0 && <p className="text-xs mt-1" style={{ color: "var(--rose)" }}>Over budget!</p>}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="mt-5">
+          <div className="flex justify-between text-xs mb-2" style={{ color: "var(--text-muted)" }}>
+            <span>Usage</span>
+            <span style={{ color }}>{pct.toFixed(1)}%</span>
+          </div>
+          <div className="progress-track" style={{ height: 8 }}>
+            <div className="progress-fill" style={{ width: `${pct}%`, background: color, boxShadow: `0 0 12px ${color}40` }} />
+          </div>
+        </div>
+
+        {/* Status message */}
+        {!loading && limit > 0 && (
+          <div className="mt-4 px-4 py-3 rounded-xl text-sm font-medium" style={{
+            background: pct >= 90 ? "rgba(255,77,109,0.08)" : pct >= 70 ? "rgba(255,185,48,0.08)" : "rgba(200,255,0,0.06)",
+            border: `1px solid ${pct >= 90 ? "rgba(255,77,109,0.2)" : pct >= 70 ? "rgba(255,185,48,0.2)" : "rgba(200,255,0,0.15)"}`,
+            color
+          }}>
+            {pct >= 90 ? "⚠️ Critical — you're nearly out of budget. Pause discretionary spending."
+              : pct >= 70 ? "🟡 Getting close — keep an eye on big purchases."
+              : "✅ On track! You're managing your budget well."}
+          </div>
+        )}
+      </div>
+
+      {/* ── Set limit + categories ─────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-2 animate-fade-up" style={{ animationDelay: "60ms" }}>
+
+        {/* Set monthly limit */}
+        <div className="card p-5">
+          <h3 className="font-bold text-base mb-1" style={{ fontFamily: "var(--font-display)" }}>Set Monthly Limit</h3>
+          <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>Saved to your account — syncs across devices</p>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-[11px] uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
+                Monthly limit (₹)
+              </label>
+              <input
+                type="number" min="0"
+                value={limitInput}
+                onChange={(e) => setLimitInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && saveMonthlyLimit()}
+                placeholder="e.g. 10000"
+                style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-display)" }}
+                disabled={loading}
+              />
+            </div>
+            <button onClick={saveMonthlyLimit} disabled={saving || loading} className="btn-primary w-full">
+              {saving ? "Saving..." : "Save Budget →"}
+            </button>
+          </div>
+
+          {/* 3 quick stat chips */}
+          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {[
+              { label: "Spent", value: `₹${spent.toFixed(0)}`, color: "var(--rose)" },
+              { label: "% Used", value: `${pct.toFixed(0)}%`, color },
+              { label: "Forecast", value: `₹${forecastTotal.toFixed(0)}`, color: "var(--amber)" },
+            ].map((s) => (
+              <div key={s.label} className="text-center p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+                <p className="font-bold text-sm" style={{ color: s.color, fontFamily: "var(--font-display)" }}>
+                  {loading ? "—" : s.value}
+                </p>
+                <p className="text-[10px] uppercase tracking-wider mt-0.5" style={{ color: "var(--text-muted)" }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Category budgets */}
+        <div className="card p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+            <div>
+              <h3 className="font-bold text-base" style={{ fontFamily: "var(--font-display)" }}>Category Limits</h3>
+              <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Set per-category spending caps</p>
+            </div>
+            <button onClick={saveCategoryBudgets} disabled={saving || loading} className="btn-primary w-full sm:w-auto px-4 py-2 text-xs">
+              {saving ? "Saving..." : "Save All"}
+            </button>
+          </div>
+
+          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+            {categories.map((cat) => {
+              const color = catColors[cat] || "#6b7a99";
+              const saved = budget?.categoryBudgets?.[cat] ?? 0;
+              const catPct = status?.categoryStatus?.[cat]?.percentUsed ?? 0;
+              const catSpent = status?.spentByCategory?.[cat] ?? 0;
+              const isOver = status?.categoryStatus?.[cat]?.isOver;
+
+              return (
+                <div key={cat}>
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      {catEmoji[cat]} {cat}
+                    </span>
+                    {saved > 0 && (
+                      <span style={{ color: isOver ? "var(--rose)" : "var(--text-muted)" }}>
+                        ₹{catSpent.toFixed(0)} / ₹{saved}
+                      </span>
+                    )}
+                  </div>
+                  {saved > 0 && (
+                    <div className="progress-track mb-2" style={{ height: 3 }}>
+                      <div className="progress-fill" style={{ width: `${catPct}%`, background: toneColor(catPct) }} />
+                    </div>
+                  )}
+                  <input
+                    type="number" min="0"
+                    value={categoryInputs[cat] ?? "0"}
+                    onChange={(e) => setCategoryInputs({ ...categoryInputs, [cat]: e.target.value })}
+                    className="w-full"
+                    style={{ padding: "11px 12px", minHeight: 44, fontSize: 13, borderColor: saved > 0 ? `${color}40` : undefined }}
+                    placeholder={`${cat} limit`}
+                  />
+                  {isOver && (
+                    <p className="text-[11px] mt-1" style={{ color: "var(--rose)" }}>
+                      ⚠️ Over by ₹{Math.abs(status?.categoryStatus?.[cat]?.remaining ?? 0).toFixed(0)}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Forecast chart ────────────────────────────────────── */}
+      <div className="card p-5 animate-fade-up" style={{ animationDelay: "120ms" }}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+          <div>
+            <h3 className="font-bold text-base" style={{ fontFamily: "var(--font-display)" }}>Spending Forecast</h3>
+            <p className="hidden sm:block text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Actual vs projected based on daily average</p>
+          </div>
+          <div className="w-full sm:w-auto px-4 py-2 rounded-xl text-sm" style={{ background: "rgba(255,185,48,0.08)", border: "1px solid rgba(255,185,48,0.2)" }}>
+            <span style={{ color: "var(--text-muted)", fontSize: 11 }}>Month forecast </span>
+            <span className="font-bold" style={{ color: "var(--amber)" }}>₹{forecastTotal.toFixed(0)}</span>
+          </div>
+        </div>
+
+        <div className="h-52 sm:h-60">
+          {loading ? (
+            <div className="skeleton h-full rounded-xl" />
+          ) : series.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center rounded-xl" style={{ border: "1px dashed rgba(255,255,255,0.08)" }}>
+              <p className="text-3xl mb-2">📊</p>
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>Add expenses to see forecast</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={series}>
+                <XAxis dataKey="day" stroke="var(--text-muted)" tick={{ fontSize: 11 }} interval={isMobile ? 4 : 1} />
+                <YAxis stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Line type="monotone" dataKey="actual" stroke="var(--lime)" strokeWidth={2.5} dot={false} name="Actual" />
+                <Line type="monotone" dataKey="forecast" stroke="var(--amber)" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Forecast" />
+                {limit > 0 && (
+                  <ReferenceLine y={limit} stroke="var(--rose)" strokeDasharray="4 4"
+                    label={{ value: "Limit", fill: "var(--rose)", fontSize: 11, position: "right" }} />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <p className="block sm:hidden text-xs mt-3" style={{ color: "var(--text-muted)" }}>
+          Actual vs projected based on daily average
+        </p>
+
+        {/* Legend */}
+        <div className="flex flex-wrap gap-4 mt-4 text-xs" style={{ color: "var(--text-muted)" }}>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2 w-5 rounded" style={{ background: "var(--lime)" }} /> Actual
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2 w-5 rounded" style={{ background: "var(--amber)", opacity: 0.7 }} /> Forecast
+          </span>
+          {limit > 0 && (
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-5 rounded" style={{ background: "var(--rose)" }} /> Budget limit
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default BudgetPage;

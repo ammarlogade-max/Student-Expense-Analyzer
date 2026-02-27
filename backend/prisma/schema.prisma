@@ -8,21 +8,105 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  password  String
-  name      String
-  createdAt DateTime  @default(now())
+  id           String            @id @default(uuid())
+  email        String            @unique
+  password     String
+  name         String
+  createdAt    DateTime          @default(now())
   refreshToken String?
-  expenses  Expense[]
+  expenses     Expense[]
+  cashWallet   CashWallet?
+  cashTxns     CashTransaction[]
+  cashAlerts   CashAlert[]
+  budget       Budget?
+  financeScores FinanceScore[]
 }
 
 model Expense {
-  id          String   @id @default(uuid())
-  amount      Float
-  category    String
-  description String?
-  createdAt   DateTime @default(now())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  id             String   @id @default(uuid())
+  amount         Float
+  category       String
+  description    String?
+  createdAt      DateTime @default(now())
+  transactedAt   DateTime @default(now())  // actual transaction date (from SMS or manual)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+// ─── Budget ───────────────────────────────────────────────────────────────────
+// Stores one budget record per user.
+// categoryBudgets is a JSON object like: { "Food": 3000, "Travel": 1000 }
+model Budget {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  monthlyLimit     Float    @default(0)
+  categoryBudgets  Json     @default("{}")
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id])
+}
+
+enum CashTransactionType {
+  withdrawal
+  expense
+  adjustment
+}
+
+enum CashTransactionSource {
+  sms
+  manual
+  voice
+}
+
+model CashWallet {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model CashTransaction {
+  id        String                @id @default(uuid())
+  userId    String
+  amount    Float
+  type      CashTransactionType
+  category  String?
+  source    CashTransactionSource
+  note      String?
+  createdAt DateTime              @default(now())
+  user      User                  @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+model CashAlert {
+  id         String   @id @default(uuid())
+  userId     String
+  message    String
+  gapAmount  Float
+  isResolved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model FinanceScore {
+  id               String   @id @default(uuid())
+  userId           String
+  date             DateTime
+  totalScore       Int
+  level            String
+  consistencyScore Int
+  budgetScore      Int
+  cashScore        Int
+  savingsScore     Int
+  streak           Int
+  weeklyDelta      Int
+  insight          String
+  user             User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@index([userId, date])
 }

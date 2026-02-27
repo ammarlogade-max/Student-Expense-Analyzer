@@ -6,106 +6,145 @@ const Settings = () => {
   const [notifications, setNotifications] = useState(true);
   const [weeklySummary, setWeeklySummary] = useState(true);
 
+  const initials = user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "??";
+
   return (
-    <div className="space-y-6">
-      <section className="rounded-3xl bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-800 p-6 text-white shadow-xl">
-        <p className="text-xs uppercase tracking-[0.3em] text-white/70">
-          Settings
+    <div className="space-y-5 stagger">
+
+      {/* ── Profile card ─────────────────────────────────────────── */}
+      <div className="card p-5 sm:p-6 animate-fade-up">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center mb-6">
+          <div className="h-16 w-16 rounded-2xl flex items-center justify-center text-xl font-black flex-shrink-0"
+            style={{ background: "var(--lime)", color: "#080c12", fontFamily: "var(--font-display)" }}>
+            {initials}
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
+              {user?.name || "Student"}
+            </h2>
+            <p className="text-sm break-words" style={{ color: "var(--text-muted)" }}>{user?.email || ""}</p>
+            <div className="flex items-center gap-1.5 mt-1">
+              <div className="live-dot" style={{ width: 6, height: 6 }} />
+              <span className="text-xs font-semibold" style={{ color: "var(--lime)" }}>Active</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+          {[
+            { label: "Member since", value: "Feb 2026" },
+            { label: "Plan", value: "Free" },
+            { label: "Data", value: "Secure" },
+            { label: "Version", value: "1.0.0" },
+          ].map((s) => (
+            <div key={s.label} className="p-3 rounded-xl text-center"
+              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+              <p className="text-sm font-semibold">{s.value}</p>
+              <p className="text-[10px] uppercase tracking-wider mt-0.5" style={{ color: "var(--text-muted)" }}>{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Two column ───────────────────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-2 animate-fade-up" style={{ animationDelay: "60ms" }}>
+
+        {/* Preferences */}
+        <div className="card p-5">
+          <h3 className="font-bold text-base mb-4" style={{ fontFamily: "var(--font-display)" }}>
+            🔔 Preferences
+          </h3>
+          <div className="space-y-3">
+            {[
+              { label: "Weekly summaries", desc: "Get a recap of your spending every Sunday", checked: weeklySummary, onChange: setWeeklySummary },
+              { label: "Push notifications", desc: "Budget alerts and cash reminders", checked: notifications, onChange: setNotifications },
+            ].map((pref) => (
+              <label key={pref.label}
+                className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between p-4 rounded-xl cursor-pointer"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+                <div>
+                  <p className="text-sm font-semibold">{pref.label}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{pref.desc}</p>
+                </div>
+                {/* Custom toggle */}
+                <div
+                  onClick={() => pref.onChange(!pref.checked)}
+                  className="flex-shrink-0 h-6 w-11 rounded-full relative cursor-pointer transition-all self-start sm:self-auto"
+                  style={{ background: pref.checked ? "var(--lime)" : "rgba(255,255,255,0.1)" }}
+                >
+                  <div
+                    className="absolute top-0.5 h-5 w-5 rounded-full transition-all"
+                    style={{
+                      background: pref.checked ? "#080c12" : "rgba(255,255,255,0.5)",
+                      left: pref.checked ? "calc(100% - 22px)" : "2px"
+                    }}
+                  />
+                </div>
+              </label>
+            ))}
+
+            <div className="p-4 rounded-xl" style={{ background: "rgba(255,185,48,0.06)", border: "1px solid rgba(255,185,48,0.15)" }}>
+              <p className="text-sm font-semibold" style={{ color: "var(--amber)" }}>📱 SMS Permission</p>
+              <span className="inline-flex mt-2 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                style={{ background: "rgba(255,185,48,0.18)", color: "var(--amber)", border: "1px solid rgba(255,185,48,0.28)" }}>
+                Not granted
+              </span>
+              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                SMS auto-detection requires permission on Android.
+              </p>
+              <button className="btn-ghost w-full sm:w-auto mt-3 text-xs py-2.5">
+                Manage Permission
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Security */}
+        <div className="card p-5">
+          <h3 className="font-bold text-base mb-4" style={{ fontFamily: "var(--font-display)" }}>
+            🔒 Security & Privacy
+          </h3>
+          <div className="space-y-3">
+            {[
+              { label: "Email verification", value: "Pending", icon: "✉️", color: "var(--amber)" },
+              { label: "Data encryption", value: "AES-256", icon: "🛡️", color: "var(--lime)" },
+              { label: "Data export", value: "Available", icon: "📦", color: "var(--teal)" },
+            ].map((s) => (
+              <div key={s.label} className="flex items-center justify-between p-3 rounded-xl"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{s.icon}</span>
+                  <p className="text-sm font-medium">{s.label}</p>
+                </div>
+                <span className="text-xs font-bold" style={{ color: s.color }}>{s.value}</span>
+              </div>
+            ))}
+
+            <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2">
+              <button className="btn-ghost text-sm py-3 w-full justify-center" style={{ minHeight: 44 }}>
+                🔑 Change Password
+              </button>
+              <button className="btn-danger py-3 w-full justify-center text-sm" style={{ minHeight: 44 }}>
+                🗑️ Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Danger zone ──────────────────────────────────────────── */}
+      <div className="card p-5 animate-fade-up" style={{ animationDelay: "120ms", border: "1px solid rgba(255,77,109,0.15)" }}>
+        <h3 className="font-bold text-base mb-1" style={{ fontFamily: "var(--font-display)", color: "var(--rose)" }}>
+          ⚠️ Logout
+        </h3>
+        <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
+          You'll be signed out and redirected to the login page.
         </p>
-        <h2 className="mt-2 text-3xl md:text-4xl font-semibold">
-          Trust, privacy, and personalization.
-        </h2>
-        <p className="mt-2 max-w-2xl text-sm text-white/80">
-          Update profile details, manage security preferences, and switch
-          accounts if needed.
-        </p>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold">Profile</h3>
-          <div className="mt-4 space-y-3 text-sm text-slate-600">
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                Name
-              </p>
-              <p className="text-base font-semibold text-slate-800">
-                {user?.name || "Unknown"}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                Email
-              </p>
-              <p className="text-base font-semibold text-slate-800">
-                {user?.email || "Unknown"}
-              </p>
-            </div>
-          </div>
-          <button
-            className="mt-6 w-full rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold text-white"
-            onClick={logout}
-          >
-            Logout
-          </button>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold">Preferences</h3>
-          <div className="mt-4 space-y-4 text-sm text-slate-600">
-            <label className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              Weekly summaries
-              <input
-                type="checkbox"
-                checked={weeklySummary}
-                onChange={(e) => setWeeklySummary(e.target.checked)}
-              />
-            </label>
-            <label className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              Notifications
-              <input
-                type="checkbox"
-                checked={notifications}
-                onChange={(e) => setNotifications(e.target.checked)}
-              />
-            </label>
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              SMS parser permission: Not granted.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold">Security & Privacy</h3>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-              Email verification
-            </p>
-            <p className="text-sm font-semibold text-slate-800">
-              Pending
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-              Data export
-            </p>
-            <p className="text-sm font-semibold text-slate-800">
-              Available on request
-            </p>
-          </div>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <button className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold">
-            Change Password
-          </button>
-          <button className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600">
-            Delete Account
-          </button>
-        </div>
-      </section>
-
+        <button onClick={logout}
+          className="btn-danger py-3 px-8 text-sm font-bold w-full sm:w-auto" style={{ minHeight: 44 }}>
+          Sign out of ExpenseIQ
+        </button>
+      </div>
     </div>
   );
 };

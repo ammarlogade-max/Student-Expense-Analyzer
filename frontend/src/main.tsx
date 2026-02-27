@@ -1,16 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import "./index.css";
+import "./index.css";   // ← KEEP THIS EXACT PATH - do not change to styles/globals.css
 import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 import Toasts from "./components/Toasts";
 
-const storedTheme = localStorage.getItem("sea_theme");
-if (storedTheme === "dark") {
-  document.body.classList.add("dark");
-}
-
+// App is always dark now - no localStorage theme switching needed
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AuthProvider>

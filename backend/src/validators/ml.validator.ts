@@ -7,3 +7,7 @@ export const predictSchema = z.object({
 export const parseSmsSchema = z.object({
   smsText: z.string().min(1)
 });
+
+export const ingestSmsSchema = z.object({
+  smsText: z.string().min(1)
+});

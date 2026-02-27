@@ -11,6 +11,8 @@ const routes = [
   { label: "Expenses", path: "/expenses" },
   { label: "Analytics", path: "/analytics" },
   { label: "Budget", path: "/budget" },
+  { label: "Score", path: "/score" },
+  { label: "Cash", path: "/cash" },
   { label: "SMS Parser", path: "/sms-parser" },
   { label: "Settings", path: "/settings" }
 ];

@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
 type Props = {
@@ -8,60 +7,73 @@ type Props = {
 
 const Navbar = ({ onOpenMenu, onOpenPalette }: Props) => {
   const { user } = useAuth();
-  const [darkMode, setDarkMode] = useState(
-    document.body.classList.contains("dark")
-  );
-
-  useEffect(() => {
-    if (darkMode) {
-      document.body.classList.add("dark");
-      localStorage.setItem("sea_theme", "dark");
-    } else {
-      document.body.classList.remove("dark");
-      localStorage.setItem("sea_theme", "light");
-    }
-  }, [darkMode]);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("sea_theme");
-    if (stored === "dark") {
-      setDarkMode(true);
-    }
-  }, []);
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-slate-200">
-      <div className="h-16 px-4 md:px-8 lg:px-10 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            className="lg:hidden rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold"
-            onClick={onOpenMenu}
+    <header
+      className="sticky top-0 z-30 h-16 flex items-center justify-between px-4 md:px-8"
+      style={{
+        background: "rgba(8,12,18,0.85)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        borderBottom: "1px solid rgba(255,255,255,0.05)",
+      }}
+    >
+      {/* Left: hamburger (mobile) + greeting */}
+      <div className="flex items-center gap-3">
+        {/* Hamburger - mobile only */}
+        <button
+          className="lg:hidden flex flex-col gap-1.5 p-2 rounded-xl"
+          style={{ background: "rgba(255,255,255,0.05)" }}
+          onClick={onOpenMenu}
+          aria-label="Open menu"
+        >
+          <span className="block h-0.5 w-5 rounded" style={{ background: "var(--text)" }} />
+          <span className="block h-0.5 w-4 rounded" style={{ background: "var(--text)" }} />
+          <span className="block h-0.5 w-5 rounded" style={{ background: "var(--text)" }} />
+        </button>
+
+        <div>
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            {greeting} 👋
+          </p>
+          <h1
+            className="text-[15px] font-semibold leading-tight"
+            style={{ fontFamily: "var(--font-display)" }}
           >
-            Menu
-          </button>
-          <button
-            className="hidden md:inline-flex rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold"
-            onClick={onOpenPalette}
-          >
-            Ctrl + K
-          </button>
-          <div>
-            <p className="text-sm text-slate-500">Welcome back</p>
-            <h1 className="text-lg font-semibold tracking-tight">
-              {user?.name || "ExpenseIQ"}
-            </h1>
-          </div>
+            {user?.name?.split(" ")[0] || "Student"}
+          </h1>
+        </div>
+      </div>
+
+      {/* Right: live dot + Ctrl+K */}
+      <div className="flex items-center gap-3">
+        {/* Live indicator */}
+        <div className="hidden sm:flex items-center gap-2">
+          <div className="live-dot" />
+          <span className="text-xs font-medium" style={{ color: "var(--lime)" }}>
+            Live
+          </span>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold"
-            onClick={() => setDarkMode((prev) => !prev)}
-            aria-label="Toggle dark mode"
-          >
-            {darkMode ? "Light" : "Dark"}
-          </button>
-        </div>
+        {/* Command palette shortcut */}
+        <button
+          onClick={onOpenPalette}
+          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "var(--text-muted)",
+          }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2"/>
+            <path d="M16.5 16.5L21 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+          Ctrl K
+        </button>
       </div>
     </header>
   );

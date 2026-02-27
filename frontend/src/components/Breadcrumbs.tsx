@@ -5,6 +5,7 @@ const routeMap: Record<string, string> = {
   expenses: "Expenses",
   analytics: "Analytics",
   budget: "Budget",
+  cash: "Cash",
   "sms-parser": "SMS Parser",
   settings: "Settings"
 };

@@ -1,3 +1,14 @@
-pandas>=2.2.0
-numpy>=1.26.0
+# ExpenseIQ ML Microservice — Python dependencies
+# Install with: pip install -r requirements.txt
+
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+
+# ML (keep versions in sync with your training environment)
 scikit-learn>=1.4.0
+numpy>=1.26.0
+pandas>=2.2.0
+
+# Already in stdlib but explicit for clarity
+python-multipart==0.0.20

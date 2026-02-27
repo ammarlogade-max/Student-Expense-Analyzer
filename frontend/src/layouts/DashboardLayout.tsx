@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import CommandPalette from "../components/CommandPalette";
-import Breadcrumbs from "../components/Breadcrumbs";
+import MobileBottomNav from "../components/MobileBottomNav";
 
 const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -17,6 +17,7 @@ const DashboardLayout = () => {
       }
       if (event.key === "Escape") {
         setPaletteOpen(false);
+        setSidebarOpen(false);
       }
     };
     window.addEventListener("keydown", handler);
@@ -24,33 +25,36 @@ const DashboardLayout = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen mesh-bg grain">
+      {/* Skip to content for accessibility */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus-ring absolute left-4 top-4 z-50 rounded bg-white px-3 py-2 text-sm"
+        className="sr-only focus:not-sr-only absolute left-4 top-4 z-50 rounded-lg px-3 py-2 text-sm"
+        style={{ background: "var(--lime)", color: "#080c12" }}
       >
         Skip to content
       </a>
-      <Sidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
 
-      <div className="lg:pl-72">
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      {/* Main area shifts right on desktop to make space for sidebar */}
+      <div className="lg:pl-[240px]">
         <Navbar
           onOpenMenu={() => setSidebarOpen(true)}
           onOpenPalette={() => setPaletteOpen(true)}
         />
+
+        {/* Main content */}
         <main
           id="main-content"
-          className="fade-in px-4 py-6 md:px-8 lg:px-10"
+          className="px-4 py-6 pb-24 md:px-8 md:py-8 lg:pb-10 animate-fade-in"
         >
-          <div className="mb-4">
-            <Breadcrumbs />
-          </div>
           <Outlet />
         </main>
       </div>
+
+      <MobileBottomNav onOpenMore={() => setSidebarOpen(true)} />
+
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );

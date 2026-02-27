@@ -1,85 +1,54 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Cell,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
+  Cell, Line, LineChart, Pie, PieChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis
 } from "recharts";
 import { getExpenses, getMonthlySummary } from "../lib/api";
 import type { Expense } from "../lib/types";
 import { useToast } from "../context/ToastContext";
 
-const palette = [
-  "#10b981",
-  "#38bdf8",
-  "#f59e0b",
-  "#f97316",
-  "#6366f1",
-  "#ec4899"
-];
+const palette = ["#c8ff00", "#00e5c3", "#ffb930", "#ff4d6d", "#a78bfa", "#60a5fa"];
+
+const catEmoji: Record<string, string> = {
+  Food: "🍔", Shopping: "🛍️", Transport: "🚇", Health: "💊",
+  Entertainment: "🎬", Education: "📚", Housing: "🏠", Other: "📦"
+};
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-hi)", borderRadius: 12, padding: "10px 14px" }}>
+      <p style={{ color: "var(--text-muted)", fontSize: 11, marginBottom: 4 }}>{label}</p>
+      <p style={{ color: "var(--lime)", fontWeight: 700, fontSize: 15 }}>₹{payload[0].value?.toFixed(0)}</p>
+    </div>
+  );
+};
 
 const Analytics = () => {
   const { push } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [summaryByCategory, setSummaryByCategory] = useState<
-    Record<string, number>
-  >({});
+  const [summaryByCategory, setSummaryByCategory] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [range, setRange] = useState({
-    startDate: "",
-    endDate: ""
-  });
+  const [range, setRange] = useState({ startDate: "", endDate: "" });
   const [compareMode, setCompareMode] = useState<"none" | "prev">("prev");
   const [compareDelta, setCompareDelta] = useState<number | null>(null);
-  const [showTrend, setShowTrend] = useState(true);
-  const [showPie, setShowPie] = useState(true);
 
   const handleExportCsv = () => {
-    if (!expenses.length) {
-      push("No data to export", "error");
-      return;
-    }
-
-    const rows = expenses.map((item) => ({
-      category: item.category,
-      amount: item.amount,
-      date: new Date(item.createdAt).toISOString()
-    }));
-
+    if (!expenses.length) { push("No data to export", "error"); return; }
     const header = ["category", "amount", "date"];
-    const csvLines = [
-      header.join(","),
-      ...rows.map((row) =>
-        header
-          .map((key) => {
-            const value = String(row[key as keyof typeof row] ?? "");
-            if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-              return `"${value.replace(/"/g, '""')}"`;
-            }
-            return value;
-          })
-          .join(",")
-      )
-    ];
-
-    const blob = new Blob([csvLines.join("\n")], {
-      type: "text/csv;charset=utf-8;"
-    });
-
+    const rows = expenses.map((item) => [
+      item.category,
+      item.amount,
+      new Date(item.createdAt).toISOString()
+    ]);
+    const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `expenses_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    push("CSV downloaded", "success");
+    const a = document.createElement("a");
+    a.href = url; a.download = `expenses_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    push("CSV downloaded ✓", "success");
   };
 
   useEffect(() => {
@@ -87,255 +56,227 @@ const Analytics = () => {
     async function load() {
       setLoading(true);
       try {
-        const [expensesRes, summaryRes] = await Promise.all([
-          getExpenses(
-            range.startDate || range.endDate ? range : undefined
-          ),
+        const [expRes, sumRes] = await Promise.all([
+          getExpenses(range.startDate || range.endDate ? range : undefined),
           getMonthlySummary()
         ]);
         if (!active) return;
-        setExpenses(expensesRes.expenses);
-        setSummaryByCategory(summaryRes.summary.byCategory);
-      } finally {
-        if (active) setLoading(false);
-      }
+        setExpenses(expRes.expenses);
+        setSummaryByCategory(sumRes.summary.byCategory);
+      } catch (err: any) {
+        if (!active) return;
+        push(err.message || "Failed to load analytics data", "error");
+        setExpenses([]);
+        setSummaryByCategory({});
+      } finally { if (active) setLoading(false); }
     }
     load();
-    return () => {
-      active = false;
-    };
-  }, [range]);
+    return () => { active = false; };
+  }, [range, push]);
 
   useEffect(() => {
-    if (!range.startDate || !range.endDate || compareMode === "none") {
-      setCompareDelta(null);
-      return;
-    }
-    const start = new Date(range.startDate);
-    const end = new Date(range.endDate);
-    const diffDays = Math.max(
-      1,
-      Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24))
-    );
-    const prevEnd = new Date(start);
-    prevEnd.setDate(prevEnd.getDate() - 1);
-    const prevStart = new Date(prevEnd);
-    prevStart.setDate(prevStart.getDate() - diffDays);
-
-    getExpenses({
-      startDate: prevStart.toISOString().slice(0, 10),
-      endDate: prevEnd.toISOString().slice(0, 10)
-    })
+    if (!range.startDate || !range.endDate || compareMode === "none") { setCompareDelta(null); return; }
+    const start = new Date(range.startDate), end = new Date(range.endDate);
+    const diff = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+    const prevEnd = new Date(start); prevEnd.setDate(prevEnd.getDate() - 1);
+    const prevStart = new Date(prevEnd); prevStart.setDate(prevStart.getDate() - diff);
+    getExpenses({ startDate: prevStart.toISOString().slice(0, 10), endDate: prevEnd.toISOString().slice(0, 10) })
       .then((res) => {
-        const prevTotal = res.expenses.reduce((sum, item) => sum + item.amount, 0);
-        const currTotal = expenses.reduce((sum, item) => sum + item.amount, 0);
-        setCompareDelta(currTotal - prevTotal);
-      })
-      .catch(() => setCompareDelta(null));
+        const prev = res.expenses.reduce((s, e) => s + e.amount, 0);
+        const curr = expenses.reduce((s, e) => s + e.amount, 0);
+        setCompareDelta(curr - prev);
+      }).catch(() => setCompareDelta(null));
   }, [range, compareMode, expenses]);
 
-  const categoryData = useMemo(
-    () =>
-      Object.entries(summaryByCategory).map(([name, value]) => ({
-        name,
-        value
-      })),
+  const categoryData = useMemo(() =>
+    Object.entries(summaryByCategory).map(([name, value]) => ({ name, value })),
     [summaryByCategory]
   );
 
   const monthlySeries = useMemo(() => {
     const map = new Map<string, number>();
-    expenses.forEach((expense) => {
-      const date = new Date(expense.createdAt);
-      const key = `${date.getFullYear()}-${String(
-        date.getMonth() + 1
-      ).padStart(2, "0")}`;
-      map.set(key, (map.get(key) || 0) + expense.amount);
+    expenses.forEach((e) => {
+      const d = new Date(e.createdAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      map.set(key, (map.get(key) || 0) + e.amount);
     });
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b))
       .map(([month, total]) => ({ month, total }));
   }, [expenses]);
 
-  return (
-    <div className="space-y-6">
-      <section className="rounded-3xl bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 p-6 text-white shadow-xl">
-        <p className="text-xs uppercase tracking-[0.3em] text-white/70">
-          Analytics
-        </p>
-        <h2 className="mt-2 text-3xl md:text-4xl font-semibold">
-          Insights powered by your real data.
-        </h2>
-        <p className="mt-2 max-w-2xl text-sm text-white/80">
-          Track category momentum, monthly trends, and spending insights across
-          every transaction you log.
-        </p>
-      </section>
+  const totalSpend = expenses.reduce((s, e) => s + e.amount, 0);
+  const avgPerTx = expenses.length ? totalSpend / expenses.length : 0;
+  const topCat = categoryData.sort((a, b) => b.value - a.value)[0];
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h3 className="text-lg font-semibold">Time Range</h3>
-            <p className="text-sm text-slate-500">
-              Filter analytics by custom dates and compare to the previous period.
+  return (
+    <div className="space-y-5 stagger">
+
+      {/* ── Stats strip ────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 animate-fade-up">
+        {[
+          { label: "Total Spent", value: `₹${totalSpend.toFixed(0)}`, icon: "💳", color: "var(--lime)" },
+          { label: "Avg Per Tx", value: `₹${avgPerTx.toFixed(0)}`, icon: "📊", color: "var(--teal)" },
+          { label: "Top Category", value: topCat?.name || "—", icon: catEmoji[topCat?.name || ""] || "📦", color: "var(--amber)" },
+        ].map((s) => (
+          <div key={s.label} className="card p-4">
+            <p className="text-xl mb-2">{s.icon}</p>
+            <p className="font-bold text-lg leading-tight" style={{ fontFamily: "var(--font-display)", color: s.color }}>
+              {loading ? "—" : s.value}
             </p>
+            <p className="text-[10px] uppercase tracking-wider mt-1" style={{ color: "var(--text-muted)" }}>{s.label}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <input
-              type="date"
-              value={range.startDate}
-              onChange={(e) => setRange({ ...range, startDate: e.target.value })}
-              className="rounded-2xl border border-slate-200 px-4 py-2 text-sm"
-            />
-            <input
-              type="date"
-              value={range.endDate}
-              onChange={(e) => setRange({ ...range, endDate: e.target.value })}
-              className="rounded-2xl border border-slate-200 px-4 py-2 text-sm"
-            />
-            <select
-              value={compareMode}
-              onChange={(e) => setCompareMode(e.target.value as "none" | "prev")}
-              className="rounded-2xl border border-slate-200 px-4 py-2 text-sm"
-            >
-              <option value="prev">Compare to previous period</option>
-              <option value="none">No comparison</option>
-            </select>
-            <button
-              className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold"
-              onClick={handleExportCsv}
-            >
-              Export CSV
-            </button>
-            <label className="flex items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={showTrend}
-                onChange={(e) => setShowTrend(e.target.checked)}
-              />
-              Trend
-            </label>
-            <label className="flex items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={showPie}
-                onChange={(e) => setShowPie(e.target.checked)}
-              />
-              Category Pie
-            </label>
+        ))}
+      </div>
+
+      {/* ── Filter bar ─────────────────────────────────────────── */}
+      <div className="card p-5 animate-fade-up" style={{ animationDelay: "60ms" }}>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_180px_240px_auto] lg:items-center lg:gap-3">
+          <div className="flex items-center gap-2 min-w-0 sm:col-span-2 lg:col-span-1">
+            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 flex-shrink-0" style={{ color: "var(--text-muted)" }}>
+              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2"/>
+              <path d="M16.5 16.5L21 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            <span className="text-sm font-semibold">Filter</span>
           </div>
+          <input type="date" value={range.startDate}
+            onChange={(e) => setRange({ ...range, startDate: e.target.value })}
+            className="w-full sm:w-auto"
+            style={{ padding: "8px 12px", fontSize: 13 }}
+          />
+          <input type="date" value={range.endDate}
+            onChange={(e) => setRange({ ...range, endDate: e.target.value })}
+            className="w-full sm:w-auto"
+            style={{ padding: "8px 12px", fontSize: 13 }}
+          />
+          <select value={compareMode} onChange={(e) => setCompareMode(e.target.value as "none" | "prev")}
+            className="w-full sm:w-auto"
+            style={{ padding: "8px 12px", fontSize: 13 }}
+          >
+            <option value="prev">Compare previous period</option>
+            <option value="none">No comparison</option>
+          </select>
+          <button onClick={handleExportCsv} className="btn-ghost w-full sm:w-auto px-4 py-2 text-xs">
+            ↓ Export CSV
+          </button>
         </div>
+
         {compareDelta !== null && (
-          <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm">
+          <div
+            className="mt-3 px-4 py-3 rounded-xl text-sm font-medium"
+            style={{
+              background: compareDelta >= 0 ? "rgba(255,77,109,0.08)" : "rgba(200,255,0,0.08)",
+              border: `1px solid ${compareDelta >= 0 ? "rgba(255,77,109,0.2)" : "rgba(200,255,0,0.2)"}`,
+              color: compareDelta >= 0 ? "var(--rose)" : "var(--lime)"
+            }}
+          >
             {compareDelta >= 0
-              ? `Spending is up by ₹${compareDelta.toFixed(2)} vs previous period.`
-              : `Spending is down by ₹${Math.abs(compareDelta).toFixed(2)} vs previous period.`}
+              ? `📈 Spending up ₹${compareDelta.toFixed(0)} vs previous period`
+              : `📉 Spending down ₹${Math.abs(compareDelta).toFixed(0)} vs previous period — great work!`}
           </div>
         )}
-      </section>
+      </div>
 
-      <section className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold">Monthly Spending Trend</h3>
-          <div className="mt-6 h-64">
-            {!showTrend ? (
-              <div className="grid h-full place-items-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-500">
-                Trend hidden.
-              </div>
-            ) : loading ? (
-              <div className="h-full rounded-2xl bg-slate-100 animate-pulse" />
+      {/* ── Charts row ─────────────────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr] animate-fade-up" style={{ animationDelay: "120ms" }}>
+
+        {/* Line chart */}
+        <div className="card p-5 min-w-0">
+          <h3 className="font-bold text-base mb-1" style={{ fontFamily: "var(--font-display)" }}>
+            Monthly Spending Trend
+          </h3>
+          <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>Total spent per month</p>
+          <div className="h-56">
+            {loading ? (
+              <div className="skeleton h-full rounded-xl" />
             ) : monthlySeries.length === 0 ? (
-              <div className="grid h-full place-items-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-500">
-                Add expenses to see trendlines.
+              <div className="h-full flex flex-col items-center justify-center rounded-xl"
+                style={{ border: "1px dashed rgba(255,255,255,0.08)" }}>
+                <p className="text-3xl mb-2">📈</p>
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>Add expenses to see trendlines</p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={monthlySeries}>
-                  <XAxis dataKey="month" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="total"
-                    stroke="#10b981"
-                    strokeWidth={3}
-                    dot={false}
-                  />
+                  <XAxis dataKey="month" stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
+                  <YAxis stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Line type="monotone" dataKey="total" stroke="var(--lime)" strokeWidth={3} dot={{ fill: "var(--lime)", r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
           </div>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold">Category Share</h3>
-          <div className="mt-6 h-64">
-            {!showPie ? (
-              <div className="grid h-full place-items-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-500">
-                Category chart hidden.
-              </div>
-            ) : loading ? (
-              <div className="h-full rounded-2xl bg-slate-100 animate-pulse" />
+        {/* Donut chart */}
+        <div className="card p-5 min-w-0">
+          <h3 className="font-bold text-base mb-1" style={{ fontFamily: "var(--font-display)" }}>
+            Category Share
+          </h3>
+          <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>This month's breakdown</p>
+          <div className="h-44">
+            {loading ? (
+              <div className="skeleton h-full rounded-xl" />
             ) : categoryData.length === 0 ? (
-              <div className="grid h-full place-items-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-500">
-                Categories will show once you log expenses.
+              <div className="h-full flex flex-col items-center justify-center rounded-xl"
+                style={{ border: "1px dashed rgba(255,255,255,0.08)" }}>
+                <p className="text-3xl mb-2">🍩</p>
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data yet</p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie
-                    data={categoryData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={55}
-                    outerRadius={90}
-                    paddingAngle={4}
-                  >
-                    {categoryData.map((_, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={palette[index % palette.length]}
-                      />
+                  <Pie data={categoryData} dataKey="value" nameKey="name" innerRadius={45} outerRadius={75} paddingAngle={3}>
+                    {categoryData.map((_, i) => (
+                      <Cell key={i} fill={palette[i % palette.length]} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(value) => `₹${Number(value ?? 0).toFixed(0)}`}
+                    contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-hi)", borderRadius: 12 }}
+                    labelStyle={{ color: "var(--text-muted)" }}
+                    itemStyle={{ color: "var(--text)" }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             )}
           </div>
-          <ul className="mt-4 space-y-2 text-sm text-slate-600">
-            {categoryData.slice(0, 5).map((item, index) => (
-              <li key={item.name} className="flex items-center gap-2">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{
-                    backgroundColor: palette[index % palette.length]
-                  }}
-                />
-                {item.name} · ₹{item.value.toFixed(2)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold">Insight Messaging</h3>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          {/* Legend */}
+          <div className="mt-3 space-y-1.5">
+            {categoryData.slice(0, 4).map((item, i) => (
+              <div key={item.name} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: palette[i % palette.length] }} />
+                  <span style={{ color: "var(--text-muted)" }}>{catEmoji[item.name] || "📦"} {item.name}</span>
+                </div>
+                <span className="font-semibold">₹{item.value.toFixed(0)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Insights ────────────────────────────────────────────── */}
+      <div className="card p-5 animate-fade-up" style={{ animationDelay: "180ms" }}>
+        <h3 className="font-bold text-base mb-4" style={{ fontFamily: "var(--font-display)" }}>
+          💡 Spending Insights
+        </h3>
+        <div className="grid gap-3 md:grid-cols-3">
           {[
-            "Your biggest spending spike happens mid-month. Consider planning for it.",
-            "Food expenses are trending upward. Set a mini-budget to keep it under control.",
-            "You are on track to spend less than last month. Nice work!"
-          ].map((text) => (
+            { icon: "📅", text: "Your biggest spending spike happens mid-month. Consider planning for it.", color: "var(--amber)" },
+            { icon: "🍔", text: "Food expenses are trending upward. Set a mini-budget to keep it under control.", color: "var(--rose)" },
+            { icon: "✅", text: "You are on track to spend less than last month. Nice work!", color: "var(--lime)" },
+          ].map((insight) => (
             <div
-              key={text}
-              className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-600"
+              key={insight.text}
+              className="p-4 rounded-2xl text-sm leading-relaxed"
+              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", color: "var(--text-muted)" }}
             >
-              {text}
+              <span className="text-xl block mb-2">{insight.icon}</span>
+              {insight.text}
             </div>
           ))}
         </div>
-      </section>
+      </div>
     </div>
   );
 };
