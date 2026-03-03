@@ -142,3 +142,4 @@ model NotificationLog {
   @@index([userId])
   @@index([sentAt])
 }
+

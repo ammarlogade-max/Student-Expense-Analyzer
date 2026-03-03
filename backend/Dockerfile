@@ -64,5 +64,5 @@ USER appuser
 EXPOSE 5000
 
 
-# Run migrations then start server
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
+# Start server WITHOUT running migrations
+CMD ["node", "dist/server.js"]
