@@ -13,21 +13,30 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { requestFcmToken, onForegroundMessage } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { getCsrfToken, getToken } from "../lib/storage";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 
-async function apiRegisterToken(token: string, authToken: string) {
+async function apiRegisterToken(token: string, authToken: string, csrfToken?: string | null) {
   return fetch(`${API_BASE}/notifications/token`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authToken}`,
+      ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
+    },
     body: JSON.stringify({ token, platform: "web" }),
   });
 }
 
-async function apiRemoveToken(token: string, authToken: string) {
+async function apiRemoveToken(token: string, authToken: string, csrfToken?: string | null) {
   return fetch(`${API_BASE}/notifications/token`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authToken}`,
+      ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
+    },
     body: JSON.stringify({ token }),
   });
 }
@@ -42,14 +51,15 @@ export function usePushNotifications() {
   const authTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
-    authTokenRef.current = localStorage.getItem("expenseiq_token");
+    authTokenRef.current = getToken();
   });
 
   const registerWithBackend = useCallback(async (token: string) => {
     const authToken = authTokenRef.current;
     if (!authToken) return;
+    const csrfToken = getCsrfToken();
     try {
-      await apiRegisterToken(token, authToken);
+      await apiRegisterToken(token, authToken, csrfToken);
       setFcmToken(token);
       localStorage.setItem("expenseiq_fcm_token", token);
     } catch (err) {
@@ -103,8 +113,9 @@ export function usePushNotifications() {
     if (user) return;
     const saved = localStorage.getItem("expenseiq_fcm_token");
     const auth  = authTokenRef.current;
+    const csrfToken = getCsrfToken();
     if (saved && auth) {
-      apiRemoveToken(saved, auth).catch(console.warn);
+      apiRemoveToken(saved, auth, csrfToken).catch(console.warn);
       localStorage.removeItem("expenseiq_fcm_token");
       setFcmToken(null);
     }
