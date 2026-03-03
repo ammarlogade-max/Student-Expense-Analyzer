@@ -31,10 +31,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 
-# Create non-root user FIRST (before copying files)
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-
-
 # Only production dependencies
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
@@ -53,8 +49,12 @@ COPY --from=builder /app/dist ./dist
 COPY prisma ./prisma
 
 
-# Fix permissions for appuser
-RUN chown -R appuser:appgroup /app
+# Create non-root user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+
+# Fix permissions for appuser on all files
+RUN chown -R appuser:appgroup /app && chmod -R 755 /app
 
 
 # Switch to non-root user for security
