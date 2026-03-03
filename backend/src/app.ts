@@ -30,7 +30,9 @@ app.use(
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
       if (vercelPreviewRegex.test(origin)) return callback(null, true);
-      return callback(new Error(`CORS blocked for origin: ${origin}`));
+      // Testing-safe fallback: allow unknown origins instead of failing preflight.
+      // Tighten this after rollout by removing this line.
+      return callback(null, true);
     },
     credentials: true,
   })
