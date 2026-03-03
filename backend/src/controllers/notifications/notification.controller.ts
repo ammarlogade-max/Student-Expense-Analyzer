@@ -12,7 +12,8 @@ const prisma = new PrismaClient();
  * Called from the frontend after FCM.getToken() on load.
  */
 export async function registerFcmToken(req: Request, res: Response) {
-  const userId = (req as any).user?.id;
+  const userId = (req as any).user?.userId;
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
   const { token, platform = "web" } = req.body;
 
   if (!token || typeof token !== "string") {
@@ -43,7 +44,8 @@ export async function removeFcmToken(req: Request, res: Response) {
  * Returns the last 50 notifications sent to this user.
  */
 export async function getNotificationHistory(req: Request, res: Response) {
-  const userId = (req as any).user?.id;
+  const userId = (req as any).user?.userId;
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
   const logs = await prisma.notificationLog.findMany({
     where: { userId },
@@ -66,7 +68,8 @@ export async function getNotificationHistory(req: Request, res: Response) {
  * Body: { action: "voice_entry" | "text_entry", text: "spent 120 on snacks" }
  */
 export async function handleNotificationAction(req: Request, res: Response) {
-  const userId = (req as any).user?.id;
+  const userId = (req as any).user?.userId;
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
   const { action, text } = req.body;
 
   if (!action || !text) {
@@ -105,7 +108,8 @@ export async function testEveningReminder(req: Request, res: Response) {
   if (process.env.NODE_ENV !== "development") {
     return res.status(403).json({ error: "Dev only" });
   }
-  const userId = (req as any).user?.id;
+  const userId = (req as any).user?.userId;
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
   const result = await sendToUser(userId, eveningCashReminder());
   return res.json({ result });
 }
