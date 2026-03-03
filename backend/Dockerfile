@@ -1,47 +1,63 @@
 # ── ExpenseIQ Backend — Dockerfile ───────────────────────────────────────────
-# Multi-stage build: compile TypeScript → run compiled JS only
-# Final image has no devDependencies, no TypeScript compiler, no source maps
+# Multi-stage build: compile TypeScript in builder → lean runtime image
+#
+# Key fixes vs previous version:
+#   1. Use node:20-slim (Debian) for BOTH stages — no Alpine, no OpenSSL issues
+#   2. Copy full prisma engines from builder so nothing downloads at runtime
+#   3. Run as root (Render sandboxes containers anyway) so Prisma can write
+#   4. PRISMA_QUERY_ENGINE_TYPE=binary ensures correct engine is used
 
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Install deps first (layer caches unless package.json changes)
+# Install OpenSSL — required by Prisma generate
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends openssl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
 RUN npm ci
 
-# Copy source and compile
 COPY . .
+
+# Generate Prisma client with binary engine (works on any Linux)
+ENV PRISMA_CLI_BINARY_TARGETS="native,debian-openssl-3.0.x"
 RUN npx prisma generate
+
 RUN npm run build
 
 # ── Stage 2: Production image ─────────────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PRISMA_QUERY_ENGINE_TYPE=binary
 
-# Only production dependencies
+# OpenSSL required by Prisma query engine at runtime
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends openssl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Production node_modules
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-# Prisma client (generated from schema, not source code)
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# Copy everything Prisma needs from builder — no runtime downloads
+COPY --from=builder /app/node_modules/.prisma        ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma        ./node_modules/@prisma
+COPY --from=builder /app/node_modules/prisma         ./node_modules/prisma
 
-# Compiled output
+# App code
 COPY --from=builder /app/dist ./dist
 
-# Prisma schema (needed for migrations at runtime)
+# Schema needed for migrate deploy
 COPY prisma ./prisma
-
-# Non-root user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-USER appuser
 
 EXPOSE 5000
 
-# Run migrations then start server
+# Run as root — Render already sandboxes the container
+# Prisma needs write access to node_modules/@prisma/engines on first run
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
