@@ -21,8 +21,20 @@ import { env } from "./config/env";
 const app = express();
 
 app.use(helmet());
-const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean);
+const vercelPreviewRegex = /^https:\/\/student-expense-analyzer.*\.vercel\.app$/;
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Allow server-to-server/curl requests (no Origin header)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      if (vercelPreviewRegex.test(origin)) return callback(null, true);
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(requestLogger);
 app.use(apiLimiter);
