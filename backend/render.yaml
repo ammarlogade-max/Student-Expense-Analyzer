@@ -1,0 +1,59 @@
+# ── ExpenseIQ — Render.com blueprint (FREE TIER) ─────────────────────────────
+# Place at: backend/render.yaml
+#
+# IMPORTANT: This config uses Render FREE web services only.
+# Database is on Neon (neon.tech) — NOT Render — because Render's free
+# PostgreSQL expires after 30 days. Neon's free tier never expires.
+#
+# Free limits:
+#   Render web service → 750 hours/month (enough for 1 always-on service)
+#   Spins down after 15 min inactivity → keep-alive cron fixes this (see README)
+
+services:
+  # ── Backend: Node.js API ───────────────────────────────────────────────────
+  - type: web
+    name: expenseiq-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: singapore
+    plan: free                  # ← FREE tier
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DATABASE_URL
+        sync: false             # ← set manually in Render dashboard (from Neon)
+      - key: JWT_SECRET
+        generateValue: true     # Render generates secure random value automatically
+      - key: REFRESH_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: REFRESH_EXPIRES_IN
+        value: 30d
+      - key: CORS_ORIGIN
+        sync: false             # ← set after Vercel deploy
+      - key: ML_SERVICE_URL
+        sync: false             # ← set after ML service deploys
+      - key: FIREBASE_SERVICE_ACCOUNT_PATH
+        value: /etc/secrets/firebase-service-account.json
+
+  # ── ML Service: FastAPI ────────────────────────────────────────────────────
+  - type: web
+    name: expenseiq-ml
+    runtime: docker
+    dockerfilePath: ./ml_service/Dockerfile
+    dockerContext: ./ml_service
+    region: singapore
+    plan: free                  # ← FREE tier
+    healthCheckPath: /health
+    envVars:
+      - key: ML_SERVICE_PORT
+        value: 8001
+      - key: MODEL_PATH
+        value: /app/expense_model.pkl
+
+# NOTE: No database block here — using Neon instead (see README Step 2)

@@ -1,28 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import {
-  Cell, Line, LineChart, Pie, PieChart,
-  ResponsiveContainer, Tooltip, XAxis, YAxis
-} from "recharts";
+﻿import { useEffect, useMemo, useState } from "react";
+import { Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getExpenses, getMonthlySummary } from "../lib/api";
 import type { Expense } from "../lib/types";
 import { useToast } from "../context/ToastContext";
 
-const palette = ["#c8ff00", "#00e5c3", "#ffb930", "#ff4d6d", "#a78bfa", "#60a5fa"];
-
-const catEmoji: Record<string, string> = {
-  Food: "🍔", Shopping: "🛍️", Transport: "🚇", Health: "💊",
-  Entertainment: "🎬", Education: "📚", Housing: "🏠", Other: "📦"
-};
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-hi)", borderRadius: 12, padding: "10px 14px" }}>
-      <p style={{ color: "var(--text-muted)", fontSize: 11, marginBottom: 4 }}>{label}</p>
-      <p style={{ color: "var(--lime)", fontWeight: 700, fontSize: 15 }}>₹{payload[0].value?.toFixed(0)}</p>
-    </div>
-  );
-};
+const palette = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#10b981", "#3b82f6", "#f97316", "#a78bfa"];
 
 const Analytics = () => {
   const { push } = useToast();
@@ -30,68 +12,58 @@ const Analytics = () => {
   const [summaryByCategory, setSummaryByCategory] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState({ startDate: "", endDate: "" });
-  const [compareMode, setCompareMode] = useState<"none" | "prev">("prev");
-  const [compareDelta, setCompareDelta] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<"trend" | "category" | "insights">("trend");
 
-  const handleExportCsv = () => {
-    if (!expenses.length) { push("No data to export", "error"); return; }
-    const header = ["category", "amount", "date"];
-    const rows = expenses.map((item) => [
-      item.category,
-      item.amount,
-      new Date(item.createdAt).toISOString()
-    ]);
-    const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `expenses_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
-    push("CSV downloaded ✓", "success");
+  const exportCsv = () => {
+    if (!expenses.length) {
+      push("No data", "error");
+      return;
+    }
+
+    const csv = [
+      "category,amount,date",
+      ...expenses.map((e) => `${e.category},${e.amount},${new Date(e.createdAt).toISOString()}`),
+    ].join("\n");
+
+    const anchor = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })),
+      download: `expenses_${new Date().toISOString().slice(0, 10)}.csv`,
+    });
+
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    push("Exported", "success");
   };
 
   useEffect(() => {
     let active = true;
-    async function load() {
-      setLoading(true);
-      try {
-        const [expRes, sumRes] = await Promise.all([
-          getExpenses(range.startDate || range.endDate ? range : undefined),
-          getMonthlySummary()
-        ]);
-        if (!active) return;
-        setExpenses(expRes.expenses);
-        setSummaryByCategory(sumRes.summary.byCategory);
-      } catch (err: any) {
-        if (!active) return;
-        push(err.message || "Failed to load analytics data", "error");
-        setExpenses([]);
-        setSummaryByCategory({});
-      } finally { if (active) setLoading(false); }
-    }
-    load();
-    return () => { active = false; };
-  }, [range, push]);
+    setLoading(true);
 
-  useEffect(() => {
-    if (!range.startDate || !range.endDate || compareMode === "none") { setCompareDelta(null); return; }
-    const start = new Date(range.startDate), end = new Date(range.endDate);
-    const diff = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
-    const prevEnd = new Date(start); prevEnd.setDate(prevEnd.getDate() - 1);
-    const prevStart = new Date(prevEnd); prevStart.setDate(prevStart.getDate() - diff);
-    getExpenses({ startDate: prevStart.toISOString().slice(0, 10), endDate: prevEnd.toISOString().slice(0, 10) })
-      .then((res) => {
-        const prev = res.expenses.reduce((s, e) => s + e.amount, 0);
-        const curr = expenses.reduce((s, e) => s + e.amount, 0);
-        setCompareDelta(curr - prev);
-      }).catch(() => setCompareDelta(null));
-  }, [range, compareMode, expenses]);
+    Promise.all([getExpenses(range.startDate || range.endDate ? range : undefined), getMonthlySummary()])
+      .then(([eRes, sRes]) => {
+        if (!active) return;
+        setExpenses(eRes.expenses);
+        setSummaryByCategory(sRes.summary.byCategory);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-  const categoryData = useMemo(() =>
-    Object.entries(summaryByCategory).map(([name, value]) => ({ name, value })),
+    return () => {
+      active = false;
+    };
+  }, [range]);
+
+  const categoryData = useMemo(
+    () =>
+      Object.entries(summaryByCategory)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value),
     [summaryByCategory]
   );
+
+  const totalSpend = useMemo(() => categoryData.reduce((sum, d) => sum + d.value, 0), [categoryData]);
 
   const monthlySeries = useMemo(() => {
     const map = new Map<string, number>();
@@ -100,183 +72,241 @@ const Analytics = () => {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       map.set(key, (map.get(key) || 0) + e.amount);
     });
-    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, total]) => ({ month, total }));
+
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, total]) => ({ month: month.slice(5), total }));
   }, [expenses]);
 
-  const totalSpend = expenses.reduce((s, e) => s + e.amount, 0);
-  const avgPerTx = expenses.length ? totalSpend / expenses.length : 0;
-  const topCat = categoryData.sort((a, b) => b.value - a.value)[0];
+  const tabStyle = (tab: string) =>
+    activeTab === tab
+      ? { background: "var(--gradient-primary)", color: "#fff", boxShadow: "0 2px 8px rgba(99,102,241,0.3)" }
+      : { background: "transparent", color: "var(--text-secondary)" };
 
   return (
-    <div className="space-y-5 stagger">
-
-      {/* ── Stats strip ────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 animate-fade-up">
-        {[
-          { label: "Total Spent", value: `₹${totalSpend.toFixed(0)}`, icon: "💳", color: "var(--lime)" },
-          { label: "Avg Per Tx", value: `₹${avgPerTx.toFixed(0)}`, icon: "📊", color: "var(--teal)" },
-          { label: "Top Category", value: topCat?.name || "—", icon: catEmoji[topCat?.name || ""] || "📦", color: "var(--amber)" },
-        ].map((s) => (
-          <div key={s.label} className="card p-4">
-            <p className="text-xl mb-2">{s.icon}</p>
-            <p className="font-bold text-lg leading-tight" style={{ fontFamily: "var(--font-display)", color: s.color }}>
-              {loading ? "—" : s.value}
-            </p>
-            <p className="text-[10px] uppercase tracking-wider mt-1" style={{ color: "var(--text-muted)" }}>{s.label}</p>
-          </div>
-        ))}
+    <div className="space-y-4 stagger">
+      <div className="hero-gradient">
+        <div className="relative z-10">
+          <p className="mb-2 text-xs uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.7)" }}>
+            Analytics
+          </p>
+          <h1 className="text-2xl font-bold sm:text-3xl" style={{ fontFamily: "var(--font-display)" }}>
+            Insights from your spending
+          </h1>
+          <p className="mt-2 max-w-lg text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>
+            Track category trends, monthly patterns, and financial behavior across all your transactions.
+          </p>
+        </div>
       </div>
 
-      {/* ── Filter bar ─────────────────────────────────────────── */}
-      <div className="card p-5 animate-fade-up" style={{ animationDelay: "60ms" }}>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_180px_240px_auto] lg:items-center lg:gap-3">
-          <div className="flex items-center gap-2 min-w-0 sm:col-span-2 lg:col-span-1">
-            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 flex-shrink-0" style={{ color: "var(--text-muted)" }}>
-              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2"/>
-              <path d="M16.5 16.5L21 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-            <span className="text-sm font-semibold">Filter</span>
-          </div>
-          <input type="date" value={range.startDate}
+      <div className="card">
+        <div className="mb-4 flex flex-wrap gap-3">
+          <input
+            type="date"
+            value={range.startDate}
             onChange={(e) => setRange({ ...range, startDate: e.target.value })}
-            className="w-full sm:w-auto"
-            style={{ padding: "8px 12px", fontSize: 13 }}
+            style={{ flex: "1 1 150px", minWidth: 0, minHeight: 44, fontSize: 16 }}
+            aria-label="Start date"
           />
-          <input type="date" value={range.endDate}
+          <input
+            type="date"
+            value={range.endDate}
             onChange={(e) => setRange({ ...range, endDate: e.target.value })}
-            className="w-full sm:w-auto"
-            style={{ padding: "8px 12px", fontSize: 13 }}
+            style={{ flex: "1 1 150px", minWidth: 0, minHeight: 44, fontSize: 16 }}
+            aria-label="End date"
           />
-          <select value={compareMode} onChange={(e) => setCompareMode(e.target.value as "none" | "prev")}
-            className="w-full sm:w-auto"
-            style={{ padding: "8px 12px", fontSize: 13 }}
-          >
-            <option value="prev">Compare previous period</option>
-            <option value="none">No comparison</option>
-          </select>
-          <button onClick={handleExportCsv} className="btn-ghost w-full sm:w-auto px-4 py-2 text-xs">
-            ↓ Export CSV
+          {(range.startDate || range.endDate) && (
+            <button
+              onClick={() => setRange({ startDate: "", endDate: "" })}
+              className="btn-ghost shrink-0 !px-3 !py-2 text-xs"
+              style={{ color: "var(--error)", borderColor: "rgba(239,68,68,0.3)" }}
+            >
+              Clear
+            </button>
+          )}
+          <button onClick={exportCsv} className="btn-primary shrink-0 !px-3 !py-2 text-xs" aria-label="Export analytics as CSV">
+            Export CSV
           </button>
         </div>
 
-        {compareDelta !== null && (
-          <div
-            className="mt-3 px-4 py-3 rounded-xl text-sm font-medium"
-            style={{
-              background: compareDelta >= 0 ? "rgba(255,77,109,0.08)" : "rgba(200,255,0,0.08)",
-              border: `1px solid ${compareDelta >= 0 ? "rgba(255,77,109,0.2)" : "rgba(200,255,0,0.2)"}`,
-              color: compareDelta >= 0 ? "var(--rose)" : "var(--lime)"
-            }}
-          >
-            {compareDelta >= 0
-              ? `📈 Spending up ₹${compareDelta.toFixed(0)} vs previous period`
-              : `📉 Spending down ₹${Math.abs(compareDelta).toFixed(0)} vs previous period — great work!`}
-          </div>
-        )}
-      </div>
-
-      {/* ── Charts row ─────────────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr] animate-fade-up" style={{ animationDelay: "120ms" }}>
-
-        {/* Line chart */}
-        <div className="card p-5 min-w-0">
-          <h3 className="font-bold text-base mb-1" style={{ fontFamily: "var(--font-display)" }}>
-            Monthly Spending Trend
-          </h3>
-          <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>Total spent per month</p>
-          <div className="h-56">
-            {loading ? (
-              <div className="skeleton h-full rounded-xl" />
-            ) : monthlySeries.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center rounded-xl"
-                style={{ border: "1px dashed rgba(255,255,255,0.08)" }}>
-                <p className="text-3xl mb-2">📈</p>
-                <p className="text-sm" style={{ color: "var(--text-muted)" }}>Add expenses to see trendlines</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlySeries}>
-                  <XAxis dataKey="month" stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Line type="monotone" dataKey="total" stroke="var(--lime)" strokeWidth={3} dot={{ fill: "var(--lime)", r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </div>
-
-        {/* Donut chart */}
-        <div className="card p-5 min-w-0">
-          <h3 className="font-bold text-base mb-1" style={{ fontFamily: "var(--font-display)" }}>
-            Category Share
-          </h3>
-          <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>This month's breakdown</p>
-          <div className="h-44">
-            {loading ? (
-              <div className="skeleton h-full rounded-xl" />
-            ) : categoryData.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center rounded-xl"
-                style={{ border: "1px dashed rgba(255,255,255,0.08)" }}>
-                <p className="text-3xl mb-2">🍩</p>
-                <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data yet</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={categoryData} dataKey="value" nameKey="name" innerRadius={45} outerRadius={75} paddingAngle={3}>
-                    {categoryData.map((_, i) => (
-                      <Cell key={i} fill={palette[i % palette.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => `₹${Number(value ?? 0).toFixed(0)}`}
-                    contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-hi)", borderRadius: 12 }}
-                    labelStyle={{ color: "var(--text-muted)" }}
-                    itemStyle={{ color: "var(--text)" }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          {/* Legend */}
-          <div className="mt-3 space-y-1.5">
-            {categoryData.slice(0, 4).map((item, i) => (
-              <div key={item.name} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: palette[i % palette.length] }} />
-                  <span style={{ color: "var(--text-muted)" }}>{catEmoji[item.name] || "📦"} {item.name}</span>
-                </div>
-                <span className="font-semibold">₹{item.value.toFixed(0)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Insights ────────────────────────────────────────────── */}
-      <div className="card p-5 animate-fade-up" style={{ animationDelay: "180ms" }}>
-        <h3 className="font-bold text-base mb-4" style={{ fontFamily: "var(--font-display)" }}>
-          💡 Spending Insights
-        </h3>
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2">
           {[
-            { icon: "📅", text: "Your biggest spending spike happens mid-month. Consider planning for it.", color: "var(--amber)" },
-            { icon: "🍔", text: "Food expenses are trending upward. Set a mini-budget to keep it under control.", color: "var(--rose)" },
-            { icon: "✅", text: "You are on track to spend less than last month. Nice work!", color: "var(--lime)" },
-          ].map((insight) => (
-            <div
-              key={insight.text}
-              className="p-4 rounded-2xl text-sm leading-relaxed"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", color: "var(--text-muted)" }}
-            >
-              <span className="text-xl block mb-2">{insight.icon}</span>
-              {insight.text}
+            { l: "Total Spend", v: `₹${totalSpend.toLocaleString("en-IN")}`, c: "var(--primary)" },
+            { l: "Categories", v: String(categoryData.length), c: "var(--accent)" },
+            { l: "Entries", v: String(expenses.length), c: "var(--warning)" },
+          ].map((s) => (
+            <div key={s.l} className="rounded-xl px-3 py-2.5 text-center" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-light)" }}>
+              <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                {s.l}
+              </p>
+              <p className="mt-0.5 text-base font-bold" style={{ color: s.c }}>
+                {s.v}
+              </p>
             </div>
           ))}
         </div>
       </div>
+
+      <div className="tab-bar">
+        {[
+          { id: "trend", label: "Trend" },
+          { id: "category", label: "Category" },
+          { id: "insights", label: "Insights" },
+        ].map((t) => (
+          <button key={t.id} onClick={() => setActiveTab(t.id as typeof activeTab)} className="tab-item" style={tabStyle(t.id)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "trend" && (
+        <div className="card">
+          <h3 className="mb-4 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+            Monthly Spending Trend
+          </h3>
+          {loading ? (
+            <div className="skeleton h-56" />
+          ) : monthlySeries.length === 0 ? (
+            <div className="flex h-56 flex-col items-center justify-center" style={{ border: "1px dashed var(--border-medium)", borderRadius: "var(--radius-lg)" }}>
+              <span className="mb-2 text-3xl">📈</span>
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                Add expenses to see trends
+              </p>
+            </div>
+          ) : (
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthlySeries} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+                  <XAxis dataKey="month" stroke="rgba(255,255,255,0.15)" tick={{ fontSize: 11, fill: "var(--text-tertiary)" }} />
+                  <YAxis
+                    stroke="rgba(255,255,255,0.15)"
+                    tick={{ fontSize: 11, fill: "var(--text-tertiary)" }}
+                    width={52}
+                    tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--bg-secondary)",
+                      border: "1px solid var(--border-medium)",
+                      borderRadius: 12,
+                      color: "var(--text-primary)",
+                    }}
+                    formatter={(v) => [`₹${Number(v ?? 0).toLocaleString("en-IN")}`, "Spend"]}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="total"
+                    stroke="#6366f1"
+                    strokeWidth={2.5}
+                    dot={{ fill: "#6366f1", r: 4, strokeWidth: 2, stroke: "var(--bg-primary)" }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "category" && (
+        <div className="space-y-4">
+          {loading ? (
+            <div className="skeleton h-64" />
+          ) : categoryData.length === 0 ? (
+            <div className="card flex h-64 flex-col items-center justify-center">
+              <span className="mb-2 text-3xl">🥧</span>
+              <p style={{ color: "var(--text-secondary)" }}>No data yet</p>
+            </div>
+          ) : (
+            <>
+              <div className="card flex items-center justify-center">
+                <div className="h-52 w-52 sm:h-60 sm:w-60">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={categoryData} dataKey="value" nameKey="name" innerRadius="45%" outerRadius="75%" paddingAngle={3}>
+                        {categoryData.map((_, i) => (
+                          <Cell key={i} fill={palette[i % palette.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--bg-secondary)",
+                          border: "1px solid var(--border-medium)",
+                          borderRadius: 12,
+                          color: "var(--text-primary)",
+                        }}
+                        formatter={(v) => [`₹${Number(v ?? 0).toLocaleString("en-IN")}`, ""]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {categoryData.map((item, i) => {
+                  const pct = totalSpend > 0 ? (item.value / totalSpend) * 100 : 0;
+                  const color = palette[i % palette.length];
+
+                  return (
+                    <div key={item.name} className="card !p-3.5">
+                      <div className="mb-2 flex items-center gap-3">
+                        <div className="h-3 w-3 shrink-0 rounded-full" style={{ background: color }} />
+                        <span className="flex-1 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                          {item.name}
+                        </span>
+                        <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+                          {pct.toFixed(1)}%
+                        </span>
+                        <span className="text-sm font-bold" style={{ color }}>
+                          ₹{item.value.toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                      <div className="progress-track">
+                        <div className="progress-bar" style={{ width: `${pct}%`, background: color }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {activeTab === "insights" && (
+        <div className="space-y-3">
+          {[
+            {
+              icon: "🎯",
+              title: "Mid-month spending spike",
+              text: "Your biggest purchases usually cluster around the 12th-18th. Pre-budget for this window.",
+            },
+            {
+              icon: "🍔",
+              title: "Food is your top category",
+              text: "Food expenses are consistently your largest spend. A ₹50/day cap can save ₹1,500/month.",
+            },
+            {
+              icon: "🏆",
+              title: "Great consistency streak",
+              text: "Logging daily for 7+ days unlocks the Consistency sub-score boost - keep it up!",
+            },
+          ].map((item) => (
+            <div key={item.title} className="insight-card">
+              <div className="flex items-start gap-3">
+                <span className="shrink-0 text-xl">{item.icon}</span>
+                <div>
+                  <p className="mb-1 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                    {item.title}
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                    {item.text}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

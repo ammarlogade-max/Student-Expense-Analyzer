@@ -9,6 +9,7 @@ import {
 import type { ReactNode } from "react";
 import type { User } from "../lib/types";
 import {
+  getCsrf,
   getMe,
   login as apiLogin,
   logout as apiLogout,
@@ -19,6 +20,7 @@ import {
   getRefreshToken,
   getStoredUser,
   getToken,
+  setCsrfToken,
   setRefreshToken,
   setStoredUser,
   setToken
@@ -52,6 +54,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const { user: me } = await getMe();
+      try {
+        const { csrfToken } = await getCsrf();
+        setCsrfToken(csrfToken);
+      } catch {
+        setCsrfToken(null);
+      }
       setUser(me);
       setStoredUser(me);
       setTokenState(currentToken);
@@ -62,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const refreshed = await refreshSession(refreshToken);
           setToken(refreshed.token);
           setRefreshToken(refreshed.refreshToken);
+          setCsrfToken(refreshed.csrfToken ?? null);
           setTokenState(refreshed.token);
           const { user: me } = await getMe();
           setUser(me);
@@ -72,12 +81,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setTokenState(null);
           setToken(null);
           setRefreshToken(null);
+          setCsrfToken(null);
         }
       } else {
         setUser(null);
         setStoredUser(null);
         setTokenState(null);
         setToken(null);
+        setCsrfToken(null);
       }
     } finally {
       setLoading(false);
@@ -92,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await apiLogin(email, password);
     setToken(result.token);
     setRefreshToken(result.refreshToken);
+    setCsrfToken(result.csrfToken ?? null);
     setTokenState(result.token);
     setUser(result.user);
     setStoredUser(result.user);
@@ -103,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await apiLogin(email, password);
       setToken(result.token);
       setRefreshToken(result.refreshToken);
+      setCsrfToken(result.csrfToken ?? null);
       setTokenState(result.token);
       setUser(result.user);
       setStoredUser(result.user);
@@ -117,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenState(null);
     setToken(null);
     setRefreshToken(null);
+    setCsrfToken(null);
   }, []);
 
   const refresh = useCallback(async () => {

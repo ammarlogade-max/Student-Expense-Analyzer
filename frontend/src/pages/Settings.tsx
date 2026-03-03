@@ -1,152 +1,98 @@
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+
+function ChevronRight() { return <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 ml-auto" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6"/></svg>; }
 
 const Settings = () => {
   const { user, logout } = useAuth();
-  const [notifications, setNotifications] = useState(true);
-  const [weeklySummary, setWeeklySummary] = useState(true);
+  const navigate = useNavigate();
 
-  const initials = user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "??";
+  const profileFields = [
+    { label:"Full Name", value:user?.name||"—" },
+    { label:"Email Address", value:user?.email||"—" },
+    { label:"Member Since", value:user?.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN",{year:"numeric",month:"long"}) : "—" },
+  ];
+
+  const quickLinks = [
+    { label:"Dashboard", sub:"Overview of your finances", icon:"📊", to:"/dashboard" },
+    { label:"Finance Score", sub:"View your behavioral score", icon:"🏆", to:"/score" },
+    { label:"Budget Planner", sub:"Manage monthly limits", icon:"🎯", to:"/budget" },
+    { label:"SMS Parser", sub:"Parse bank transaction SMS", icon:"📱", to:"/sms-parser" },
+    { label:"Redo Onboarding", sub:"Update your profile setup", icon:"🔄", action:() => { sessionStorage.removeItem("expenseiq_onboarding_done"); navigate("/onboarding"); } },
+  ];
 
   return (
     <div className="space-y-5 stagger">
+      <div>
+        <h1 className="text-2xl font-bold" style={{ fontFamily:"var(--font-display)", color:"var(--text-primary)" }}>Settings</h1>
+        <p className="text-sm" style={{ color:"var(--text-secondary)" }}>Manage your profile and account preferences</p>
+      </div>
 
-      {/* ── Profile card ─────────────────────────────────────────── */}
-      <div className="card p-5 sm:p-6 animate-fade-up">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center mb-6">
-          <div className="h-16 w-16 rounded-2xl flex items-center justify-center text-xl font-black flex-shrink-0"
-            style={{ background: "var(--lime)", color: "#080c12", fontFamily: "var(--font-display)" }}>
-            {initials}
+      {/* Profile hero */}
+      <div className="card card-gradient">
+        <div className="flex items-center gap-4 mb-5">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl text-2xl font-bold text-white shrink-0" style={{ background:"var(--gradient-primary)" }}>
+            {user?.name?.charAt(0).toUpperCase()||"U"}
           </div>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
-              {user?.name || "Student"}
-            </h2>
-            <p className="text-sm break-words" style={{ color: "var(--text-muted)" }}>{user?.email || ""}</p>
-            <div className="flex items-center gap-1.5 mt-1">
-              <div className="live-dot" style={{ width: 6, height: 6 }} />
-              <span className="text-xs font-semibold" style={{ color: "var(--lime)" }}>Active</span>
-            </div>
+          <div>
+            <h2 className="text-lg font-bold" style={{ color:"var(--text-primary)", fontFamily:"var(--font-display)" }}>{user?.name||"Student"}</h2>
+            <p className="text-sm" style={{ color:"var(--text-secondary)" }}>{user?.email}</p>
+            <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium px-2 py-0.5 rounded-full" style={{ background:"rgba(99,102,241,0.12)", color:"var(--primary)", border:"1px solid rgba(99,102,241,0.2)" }}>
+              ✓ Student Account
+            </span>
           </div>
         </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
-          {[
-            { label: "Member since", value: "Feb 2026" },
-            { label: "Plan", value: "Free" },
-            { label: "Data", value: "Secure" },
-            { label: "Version", value: "1.0.0" },
-          ].map((s) => (
-            <div key={s.label} className="p-3 rounded-xl text-center"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
-              <p className="text-sm font-semibold">{s.value}</p>
-              <p className="text-[10px] uppercase tracking-wider mt-0.5" style={{ color: "var(--text-muted)" }}>{s.label}</p>
+        <div className="space-y-2">
+          {profileFields.map(f => (
+            <div key={f.label} className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background:"var(--bg-tertiary)", border:"1px solid var(--border-light)" }}>
+              <span className="text-xs font-medium" style={{ color:"var(--text-tertiary)" }}>{f.label}</span>
+              <span className="text-sm font-medium" style={{ color:"var(--text-primary)" }}>{f.value}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ── Two column ───────────────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-2 animate-fade-up" style={{ animationDelay: "60ms" }}>
-
-        {/* Preferences */}
-        <div className="card p-5">
-          <h3 className="font-bold text-base mb-4" style={{ fontFamily: "var(--font-display)" }}>
-            🔔 Preferences
-          </h3>
-          <div className="space-y-3">
-            {[
-              { label: "Weekly summaries", desc: "Get a recap of your spending every Sunday", checked: weeklySummary, onChange: setWeeklySummary },
-              { label: "Push notifications", desc: "Budget alerts and cash reminders", checked: notifications, onChange: setNotifications },
-            ].map((pref) => (
-              <label key={pref.label}
-                className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between p-4 rounded-xl cursor-pointer"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
-                <div>
-                  <p className="text-sm font-semibold">{pref.label}</p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{pref.desc}</p>
-                </div>
-                {/* Custom toggle */}
-                <div
-                  onClick={() => pref.onChange(!pref.checked)}
-                  className="flex-shrink-0 h-6 w-11 rounded-full relative cursor-pointer transition-all self-start sm:self-auto"
-                  style={{ background: pref.checked ? "var(--lime)" : "rgba(255,255,255,0.1)" }}
-                >
-                  <div
-                    className="absolute top-0.5 h-5 w-5 rounded-full transition-all"
-                    style={{
-                      background: pref.checked ? "#080c12" : "rgba(255,255,255,0.5)",
-                      left: pref.checked ? "calc(100% - 22px)" : "2px"
-                    }}
-                  />
-                </div>
-              </label>
-            ))}
-
-            <div className="p-4 rounded-xl" style={{ background: "rgba(255,185,48,0.06)", border: "1px solid rgba(255,185,48,0.15)" }}>
-              <p className="text-sm font-semibold" style={{ color: "var(--amber)" }}>📱 SMS Permission</p>
-              <span className="inline-flex mt-2 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                style={{ background: "rgba(255,185,48,0.18)", color: "var(--amber)", border: "1px solid rgba(255,185,48,0.28)" }}>
-                Not granted
-              </span>
-              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                SMS auto-detection requires permission on Android.
-              </p>
-              <button className="btn-ghost w-full sm:w-auto mt-3 text-xs py-2.5">
-                Manage Permission
-              </button>
+      {/* Quick navigation */}
+      <div className="card !p-0 overflow-hidden">
+        <p className="px-5 pt-4 pb-2 text-xs font-semibold uppercase tracking-widest" style={{ color:"var(--text-muted)" }}>Quick Navigation</p>
+        {quickLinks.map((l, i) => (
+          <button key={l.label}
+            onClick={l.to ? () => navigate(l.to!) : l.action}
+            className="flex w-full items-center gap-3.5 px-5 py-4 text-left transition"
+            style={{
+              borderTop: i>0 ? "1px solid var(--border-light)" : "none",
+              color:"var(--text-secondary)",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background="var(--bg-tertiary)"; e.currentTarget.style.color="var(--text-primary)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background=""; e.currentTarget.style.color="var(--text-secondary)"; }}>
+            <span className="text-lg">{l.icon}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium" style={{ color:"var(--text-primary)" }}>{l.label}</p>
+              <p className="text-xs" style={{ color:"var(--text-tertiary)" }}>{l.sub}</p>
             </div>
-          </div>
-        </div>
-
-        {/* Security */}
-        <div className="card p-5">
-          <h3 className="font-bold text-base mb-4" style={{ fontFamily: "var(--font-display)" }}>
-            🔒 Security & Privacy
-          </h3>
-          <div className="space-y-3">
-            {[
-              { label: "Email verification", value: "Pending", icon: "✉️", color: "var(--amber)" },
-              { label: "Data encryption", value: "AES-256", icon: "🛡️", color: "var(--lime)" },
-              { label: "Data export", value: "Available", icon: "📦", color: "var(--teal)" },
-            ].map((s) => (
-              <div key={s.label} className="flex items-center justify-between p-3 rounded-xl"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
-                <div className="flex items-center gap-3">
-                  <span className="text-lg">{s.icon}</span>
-                  <p className="text-sm font-medium">{s.label}</p>
-                </div>
-                <span className="text-xs font-bold" style={{ color: s.color }}>{s.value}</span>
-              </div>
-            ))}
-
-            <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2">
-              <button className="btn-ghost text-sm py-3 w-full justify-center" style={{ minHeight: 44 }}>
-                🔑 Change Password
-              </button>
-              <button className="btn-danger py-3 w-full justify-center text-sm" style={{ minHeight: 44 }}>
-                🗑️ Delete Account
-              </button>
-            </div>
-          </div>
-        </div>
+            <ChevronRight/>
+          </button>
+        ))}
       </div>
 
-      {/* ── Danger zone ──────────────────────────────────────────── */}
-      <div className="card p-5 animate-fade-up" style={{ animationDelay: "120ms", border: "1px solid rgba(255,77,109,0.15)" }}>
-        <h3 className="font-bold text-base mb-1" style={{ fontFamily: "var(--font-display)", color: "var(--rose)" }}>
-          ⚠️ Logout
-        </h3>
-        <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
-          You'll be signed out and redirected to the login page.
-        </p>
-        <button onClick={logout}
-          className="btn-danger py-3 px-8 text-sm font-bold w-full sm:w-auto" style={{ minHeight: 44 }}>
-          Sign out of ExpenseIQ
-        </button>
+      {/* About card */}
+      <div className="card text-center">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background:"var(--gradient-primary)" }}>
+            <span className="text-xs font-black text-white">IQ</span>
+          </div>
+          <span className="text-base font-bold" style={{ fontFamily:"var(--font-display)", color:"var(--text-primary)" }}>ExpenseIQ</span>
+        </div>
+        
+        <p className="text-xs" style={{ color:"var(--text-muted)" }}>Built with ❤️ by Ammar · AI-Powered Finance for Students</p>
       </div>
+
+      {/* Logout */}
+      <button onClick={logout} className="btn-secondary w-full" style={{ color:"var(--error)", borderColor:"rgba(239,68,68,0.2)" }}>
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Sign Out
+      </button>
     </div>
   );
 };
-
 export default Settings;

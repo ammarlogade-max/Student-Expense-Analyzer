@@ -1,0 +1,12 @@
+{
+  "_comment": "Add/replace these scripts in your backend/package.json",
+  "scripts": {
+    "dev":          "tsx watch src/server.ts",
+    "build":        "tsc -p tsconfig.production.json",
+    "start":        "node dist/server.js",
+    "db:migrate":   "prisma migrate dev",
+    "db:deploy":    "prisma migrate deploy",
+    "db:generate":  "prisma generate",
+    "db:studio":    "prisma studio"
+  }
+}

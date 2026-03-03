@@ -7,6 +7,7 @@ import {
 } from "../../services/auth/auth.service";
 import { verify } from "jsonwebtoken";
 import { env } from "../../config/env";
+import { clearCsrfToken, getOrIssueCsrfToken, issueCsrfToken } from "../../middlewares/csrf.middleware";
 
 export async function signup(req: Request, res: Response) {
   try {
@@ -35,6 +36,7 @@ export async function login(req: Request, res: Response) {
       message: "Login successful",
       token: result.token,
       refreshToken: result.refreshToken,
+      csrfToken: issueCsrfToken(result.user.id),
       user: result.user
     });
   } catch (error: any) {
@@ -59,7 +61,8 @@ export async function refresh(req: Request, res: Response) {
     return res.status(200).json({
       message: "Token refreshed",
       token: tokens.token,
-      refreshToken: tokens.refreshToken
+      refreshToken: tokens.refreshToken,
+      csrfToken: issueCsrfToken(decoded.userId)
     });
   } catch (error: any) {
     return res.status(401).json({
@@ -72,10 +75,16 @@ export async function logout(req: Request, res: Response) {
   try {
     const user = (req as any).user;
     await revokeRefreshToken(user.userId);
+    clearCsrfToken(user.userId);
     return res.status(200).json({ message: "Logged out" });
   } catch (error: any) {
     return res.status(400).json({
       message: error.message || "Logout failed"
     });
   }
+}
+
+export async function getCsrf(req: Request, res: Response) {
+  const user = (req as any).user;
+  return res.status(200).json({ csrfToken: getOrIssueCsrfToken(user.userId) });
 }

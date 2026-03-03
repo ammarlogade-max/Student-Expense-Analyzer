@@ -20,6 +20,14 @@ model User {
   cashAlerts   CashAlert[]
   budget       Budget?
   financeScores FinanceScore[]
+  college          String?
+  yearOfStudy      Int?
+  city             String?
+  monthlyAllowance Float?
+  budgetSplit      Json?
+  onboardingDone   Boolean  @default(false)
+  fcmTokens        FcmToken[]
+  notificationLogs NotificationLog[]
 }
 
 model Expense {
@@ -109,4 +117,28 @@ model FinanceScore {
 
   @@unique([userId, date])
   @@index([userId, date])
+}
+model FcmToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  platform  String   @default("web")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model NotificationLog {
+  id      String   @id @default(uuid())
+  userId  String
+  type    String
+  title   String
+  body    String
+  sentAt  DateTime @default(now())
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sentAt])
 }

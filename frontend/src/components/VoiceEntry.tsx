@@ -59,7 +59,6 @@ interface VoiceEntryProps {
 export const VoiceEntry = ({ onSaved }: VoiceEntryProps) => {
   const { push } = useToast();
   const recognitionRef = useRef<any>(null);
-  const exampleRef = useRef(0);
 
   const [state, setState] = useState<VoiceState>("idle");
   const [liveText, setLiveText] = useState(""); // interim (while speaking)
@@ -280,8 +279,7 @@ export const VoiceEntry = ({ onSaved }: VoiceEntryProps) => {
           {/* Big mic button */}
           <button
             onClick={startListening}
-            className="relative mx-auto flex w-full max-w-xs flex-col items-center gap-3 group rounded-2xl py-2"
-            style={{ minHeight: 44 }}
+            className="relative mx-auto flex flex-col items-center gap-3 group"
           >
             <div
               className="h-20 w-20 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 group-active:scale-95"

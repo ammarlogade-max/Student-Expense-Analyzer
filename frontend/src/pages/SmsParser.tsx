@@ -2,364 +2,160 @@ import { useState } from "react";
 import { addExpense, ingestSms, parseSms } from "../lib/api";
 import { useToast } from "../context/ToastContext";
 
-const categories = ["Food", "Shopping", "Transport", "Housing", "Education", "Entertainment", "Health", "Other"];
+const categories = ["Food","Shopping","Transport","Housing","Education","Entertainment","Health","Other"];
+const catColors: Record<string,string> = { Food:"#f59e0b",Shopping:"#ec4899",Transport:"#14b8a6",Housing:"#f97316",Education:"#6366f1",Entertainment:"#a78bfa",Health:"#10b981",Other:"#94a3b8" };
 
-const catEmoji: Record<string, string> = {
-  Food: "🍔", Shopping: "🛍️", Transport: "🚇", Housing: "🏠",
-  Education: "📚", Entertainment: "🎬", Health: "💊", Other: "📦"
-};
-
-const catColors: Record<string, string> = {
-  Food: "#c8ff00", Shopping: "#00e5c3", Transport: "#ffb930",
-  Housing: "#f97316", Education: "#60a5fa", Entertainment: "#a78bfa",
-  Health: "#ff4d6d", Other: "#6b7a99"
-};
-
-// Example SMS templates to help users
 const EXAMPLES = [
-  "Rs. 250 debited from a/c XX1234 on 05-02-2026 to Zomato. Avl Bal: Rs. 4500.00",
-  "INR 2000.00 withdrawn from ATM on 06-02-2026. Available balance: INR 8000.00",
-  "Rs.150 spent on HDFC Bank Debit Card on 07-02-2026 at SWIGGY. Avl Bal: Rs.12000",
-  "Your a/c XX5678 is debited for Rs. 500.00 towards UPI/Ola/07022026. Bal: Rs.3200",
+  { bank:"Swiggy / HDFC", sms:"Dear Customer, INR 450.00 debited from A/c XX1234 on 28-Feb at Swiggy. Avl Bal: INR 8,220.00" },
+  { bank:"Ola / HDFC", sms:"₹280 spent on Ola using HDFC Debit Card XX9876. Available balance: ₹12,450" },
+  { bank:"ATM / ICICI", sms:"Rs.1200.00 withdrawn from ATM on 27-Feb-26. Avl Bal Rs.7350.00 ICICI Bank" },
 ];
 
-type ParseResult = {
-  amount: string | null;
-  date: string | null;
-  merchant: string;
-  category: string;
-  type?: string;
-};
+const steps = [
+  { icon:<svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>, title:"Paste SMS", desc:"Copy a transaction message from your banking app" },
+  { icon:<svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>, title:"AI Parses", desc:"ML model extracts amount, merchant and category" },
+  { icon:<svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>, title:"Auto-Add", desc:"Record the expense instantly with one tap" },
+];
 
 const SmsParser = () => {
   const { push } = useToast();
   const [smsText, setSmsText] = useState("");
-  const [result, setResult] = useState<ParseResult | null>(null);
-  const [showAllExamples, setShowAllExamples] = useState(false);
+  const [result, setResult] = useState<{ amount:string|null; date:string|null; merchant:string; category:string; type?:string }|null>(null);
   const [selectedCategory, setSelectedCategory] = useState("Other");
   const [loading, setLoading] = useState(false);
-  const [ingesting, setIngesting] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleParse = async () => {
-    setLoading(true); setError(null); setResult(null);
-    try {
-      const res = await parseSms(smsText);
-      setResult(res.result);
-      const cat = res.result?.category;
-      setSelectedCategory(!cat || cat === "Uncategorized" ? "Other" : cat);
-    } catch (err: any) {
-      setError(err.message || "Failed to parse SMS");
-    } finally { setLoading(false); }
+    if (!smsText.trim()) { push("Paste an SMS first","error"); return; }
+    setLoading(true); setResult(null);
+    try { const res = await parseSms(smsText); setResult(res.result); setSelectedCategory(res.result.category||"Other"); }
+    catch (err:any) { push(err.message||"Parse failed","error"); }
+    finally { setLoading(false); }
   };
 
   const handleIngest = async () => {
-    setIngesting(true); setError(null);
+    if (!smsText.trim()) { push("Paste an SMS first","error"); return; }
+    setLoading(true); setResult(null);
     try {
-      const res = await ingestSms(smsText);
-      setResult(res.result);
-      if (res.result.type === "cash_withdrawal") {
-        push("💵 ATM withdrawal auto-recorded in cash wallet", "success");
-      } else {
-        push("SMS ingested as expense flow", "success");
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to ingest SMS");
-    } finally { setIngesting(false); }
+      const res = await ingestSms(smsText); setResult(res.result); setSelectedCategory(res.result.category||"Other");
+      push(res.result.type==="cash_withdrawal" ? "Cash withdrawal recorded" : "Expense added automatically","success");
+    } catch (err:any) { push(err.message||"Ingest failed","error"); }
+    finally { setLoading(false); }
   };
 
-  const handleSaveExpense = async () => {
-    if (!result?.amount) { push("Parsed amount missing", "error"); return; }
+  const handleSave = async () => {
+    if (!result?.amount) { push("No amount parsed","error"); return; }
     setSaving(true);
-    try {
-      await addExpense({
-        amount: Number(result.amount),
-        category: !result.category || result.category === "Uncategorized" || !result.merchant
-          ? selectedCategory : result.category,
-        description: result.merchant || "SMS expense"
-      });
-      push("Saved to expenses ✓", "success");
-    } catch (err: any) {
-      push(err.message || "Failed to save", "error");
-    } finally { setSaving(false); }
+    try { await addExpense({ amount:parseFloat(result.amount), category:selectedCategory, description:`SMS: ${result.merchant}` }); push("Expense saved!","success"); setResult(null); setSmsText(""); }
+    catch (err:any) { push(err.message||"Save failed","error"); }
+    finally { setSaving(false); }
   };
-
-  const needsCategorySelect = !result?.category || result.category === "Uncategorized" || !result?.merchant;
-  const visibleExamples = showAllExamples ? EXAMPLES : EXAMPLES.slice(0, 1);
 
   return (
     <div className="space-y-5 stagger">
-
-      {/* ── Hero ──────────────────────────────────────────────── */}
-      <div className="card p-6 animate-fade-up" style={{
-        background: "linear-gradient(135deg, rgba(0,229,195,0.08) 0%, rgba(200,255,0,0.04) 60%, var(--bg-card) 100%)",
-        border: "1px solid rgba(0,229,195,0.15)"
-      }}>
-        <div className="flex items-start gap-4">
-          <div className="h-12 w-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
-            style={{ background: "rgba(0,229,195,0.12)", border: "1px solid rgba(0,229,195,0.2)" }}>
-            📱
-          </div>
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="badge badge-teal">Beta</span>
-              <span className="text-[11px] font-semibold uppercase tracking-[0.15em]" style={{ color: "var(--teal)" }}>
-                SMS Auto-Tracking
-              </span>
-            </div>
-            <h2 className="text-2xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
-              Paste. Parse. Save.
-            </h2>
-            <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-              Paste any bank SMS and our AI extracts the amount, merchant, and category automatically.
-            </p>
-          </div>
-        </div>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold" style={{ fontFamily:"var(--font-display)", color:"var(--text-primary)" }}>SMS Parser</h1>
+        <p className="text-sm" style={{ color:"var(--text-secondary)" }}>Auto-extract expense data from your bank SMS messages</p>
       </div>
 
-      {/* ── Main test bench ───────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr] animate-fade-up" style={{ animationDelay: "60ms" }}>
-
-        {/* Input side */}
-        <div className="card p-5 space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-                Paste Bank SMS
-              </label>
-              <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                {smsText.length} chars
-              </span>
+      {/* How it works — horizontal on desktop */}
+      <div className="grid grid-cols-3 gap-3">
+        {steps.map((s, i) => (
+          <div key={i} className="card !p-4 flex flex-col items-center text-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl mb-3 text-white" style={{ background:"var(--gradient-primary)" }}>
+              {s.icon}
             </div>
-            <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
-              Paste one full transaction SMS. We will extract amount, merchant, date, and category.
-            </p>
-            <textarea
-              value={smsText}
-              onChange={(e) => setSmsText(e.target.value)}
-              placeholder={"e.g. Rs. 250 debited from a/c XX1234 on 05-02-2026 to Zomato..."}
-              className="w-full"
-              style={{ minHeight: 170, resize: "vertical", lineHeight: 1.7 }}
-            />
+            <p className="text-sm font-semibold mb-0.5" style={{ color:"var(--text-primary)" }}>{s.title}</p>
+            <p className="text-xs leading-relaxed" style={{ color:"var(--text-tertiary)" }}>{s.desc}</p>
           </div>
-
-          {error && (
-            <div className="px-4 py-3 rounded-xl text-sm"
-              style={{ background: "rgba(255,77,109,0.08)", border: "1px solid rgba(255,77,109,0.2)", color: "var(--rose)" }}>
-              {error}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <button
-              onClick={handleParse}
-              disabled={!smsText.trim() || loading}
-              className="btn-primary"
-              style={{ minHeight: 44 }}
-            >
-              {loading ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity=".3"/>
-                    <path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                  </svg>
-                  Parsing...
-                </>
-              ) : "🔍 Parse SMS"}
-            </button>
-            <button
-              onClick={handleIngest}
-              disabled={!smsText.trim() || ingesting}
-              className="btn-ghost"
-              style={{ minHeight: 44 }}
-            >
-              {ingesting ? "Ingesting..." : "⚡ Auto Ingest"}
-            </button>
-          </div>
-
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            <strong style={{ color: "var(--text)" }}>Parse</strong> — preview only.{" "}
-            <strong style={{ color: "var(--text)" }}>Auto Ingest</strong> — saves automatically + detects ATM withdrawals.
-          </p>
-
-          {/* Example SMSes */}
-          <div>
-            <p className="text-[11px] uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
-              Try an example
-            </p>
-            <div className="space-y-1.5">
-              {visibleExamples.map((ex, i) => (
-                <button
-                  key={i}
-                  onClick={() => setSmsText(ex)}
-                  className="w-full text-left px-3 py-2 rounded-xl text-xs transition-all"
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", color: "var(--text-muted)", lineHeight: 1.5 }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "var(--text)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.color = "var(--text-muted)"; }}
-                >
-                  {ex.length > 80 ? ex.slice(0, 80) + "…" : ex}
-                </button>
-              ))}
-            </div>
-            {EXAMPLES.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setShowAllExamples((v) => !v)}
-                className="btn-ghost mt-2 w-full text-xs"
-                style={{ minHeight: 40 }}
-              >
-                {showAllExamples ? "Show fewer examples" : "Show more examples"}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Result side */}
-        <div className="card p-5">
-          <h3 className="font-bold text-base mb-4" style={{ fontFamily: "var(--font-display)" }}>
-            Parsed Result
-          </h3>
-
-          {!result ? (
-            <div className="min-h-[260px] flex flex-col items-center justify-center py-16 rounded-2xl text-center" style={{ border: "1px dashed rgba(255,255,255,0.08)" }}>
-              <p className="text-4xl mb-3">🔍</p>
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>Paste an SMS and hit Parse</p>
-              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Results appear here</p>
-            </div>
-          ) : result.type === "cash_withdrawal" ? (
-            /* ATM withdrawal result */
-            <div className="space-y-4">
-              <div className="p-5 rounded-2xl text-center" style={{ background: "rgba(200,255,0,0.06)", border: "1px solid rgba(200,255,0,0.15)" }}>
-                <p className="text-3xl mb-2">💵</p>
-                <p className="text-sm font-semibold mb-1" style={{ color: "var(--lime)" }}>ATM Withdrawal Detected</p>
-                <p className="text-3xl font-black" style={{ fontFamily: "var(--font-display)", color: "var(--lime)" }}>
-                  ₹{result.amount}
-                </p>
-              </div>
-              <div className="px-4 py-3 rounded-xl text-sm" style={{ background: "rgba(200,255,0,0.06)", border: "1px solid rgba(200,255,0,0.12)", color: "var(--lime)" }}>
-                ✅ Automatically posted to your cash wallet
-              </div>
-            </div>
-          ) : (
-            /* Expense result */
-            <div className="space-y-4">
-              {/* Amount hero */}
-              <div className="p-4 rounded-2xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
-                <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>Amount Detected</p>
-                <p className="text-4xl font-black" style={{ fontFamily: "var(--font-display)", color: "var(--lime)" }}>
-                  ₹{result.amount || "N/A"}
-                </p>
-              </div>
-
-              {/* Fields grid */}
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {[
-                  { label: "Merchant", value: result.merchant || "Unknown" },
-                  { label: "Date", value: result.date || "N/A" },
-                  { label: "Category", value: result.category || "N/A" },
-                  { label: "Type", value: result.type || "expense" },
-                ].map((f) => (
-                  <div key={f.label} className="p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
-                    <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>{f.label}</p>
-                    <p className="text-sm font-semibold break-words">{f.value}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Category override if unknown merchant */}
-              {needsCategorySelect && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium" style={{ color: "var(--amber)" }}>
-                    ⚠️ Merchant not recognized — choose a category:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {categories.map((cat) => {
-                      const color = catColors[cat];
-                      return (
-                        <button
-                          key={cat}
-                          onClick={() => setSelectedCategory(cat)}
-                          className="cat-chip text-xs"
-                          style={selectedCategory === cat
-                            ? { background: `${color}18`, borderColor: color, color }
-                            : {}
-                          }
-                        >
-                          {catEmoji[cat]} {cat}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              <button onClick={handleSaveExpense} disabled={saving} className="btn-primary w-full">
-                {saving ? "Saving..." : "💾 Save as Expense"}
-              </button>
-              <p className="text-[11px] text-center" style={{ color: "var(--text-muted)" }}>
-                Saved expenses appear in Dashboard, Analytics & Budget
-              </p>
-            </div>
-          )}
-        </div>
+        ))}
       </div>
 
-      {/* ── Security & features ───────────────────────────────── */}
-      <div className="grid gap-4 md:grid-cols-2 animate-fade-up" style={{ animationDelay: "120ms" }}>
+      {/* SMS Input card */}
+      <div className="card space-y-4">
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color:"var(--text-secondary)" }}>Bank Transaction SMS</label>
+          <textarea value={smsText} onChange={e => setSmsText(e.target.value)} rows={4}
+            placeholder="Paste your bank SMS here — e.g. 'INR 450.00 debited from A/c XX1234 at Swiggy…'"
+            style={{ resize:"none" }}/>
+        </div>
 
-        {/* Privacy */}
-        <div className="card p-5">
-          <h3 className="font-bold text-base mb-4" style={{ fontFamily: "var(--font-display)" }}>
-            🔒 Privacy First
-          </h3>
-          <div className="space-y-2">
-            {[
-              { icon: "✅", text: "SMS access requires explicit opt-in" },
-              { icon: "✅", text: "Only transactional keywords are parsed" },
-              { icon: "✅", text: "Revoke permission anytime in Settings" },
-              { icon: "✅", text: "Data stays in your account, never shared" },
-            ].map((item) => (
-              <div key={item.text} className="flex items-start gap-3 px-4 py-3 rounded-xl text-sm"
-                style={{ background: "rgba(200,255,0,0.04)", border: "1px solid rgba(200,255,0,0.08)" }}>
-                <span>{item.icon}</span>
-                <span style={{ color: "var(--text-muted)" }}>{item.text}</span>
-              </div>
+        {/* Example buttons */}
+        <div>
+          <p className="text-xs mb-2" style={{ color:"var(--text-muted)" }}>Try an example:</p>
+          <div className="space-y-1.5">
+            {EXAMPLES.map((ex, i) => (
+              <button key={i} onClick={() => setSmsText(ex.sms)} className="w-full text-left rounded-xl px-3 py-2.5 text-sm transition"
+                style={{ background:"var(--bg-tertiary)", border:"1px solid var(--border-light)", color:"var(--text-secondary)" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor="var(--border-medium)"; e.currentTarget.style.color="var(--text-primary)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor="var(--border-light)"; e.currentTarget.style.color="var(--text-secondary)"; }}>
+                <span className="font-medium" style={{ color:"var(--primary)" }}>{ex.bank}</span>
+                <span className="ml-2 text-xs" style={{ color:"var(--text-tertiary)" }}>{ex.sms.slice(0,60)}…</span>
+              </button>
             ))}
           </div>
         </div>
 
-        {/* Coming soon */}
-        <div className="card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <h3 className="font-bold text-base" style={{ fontFamily: "var(--font-display)" }}>
-              🚀 Coming Soon
-            </h3>
-            <span className="badge badge-amber">Q2 2026</span>
-          </div>
-          <div className="space-y-3">
-            {[
-              { icon: "🤖", title: "Auto SMS detection", desc: "Read bank SMS in background with your permission" },
-              { icon: "📊", title: "Confidence scoring", desc: "ML score before auto-adding any expense" },
-              { icon: "✋", title: "Review queue", desc: "One-tap approve or reject parsed expenses" },
-            ].map((f) => (
-              <div key={f.title} className="flex items-start gap-3 p-3 rounded-xl"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
-                <span className="text-xl flex-shrink-0">{f.icon}</span>
-                <div>
-                  <p className="text-sm font-semibold">{f.title}</p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{f.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button className="btn-ghost w-full mt-4 text-sm">
-            Request Early Access →
+        {/* Actions */}
+        <div className="flex gap-2">
+          <button onClick={handleParse} disabled={loading} className="btn-secondary flex-1">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="m21 21-4.35-4.35"/></svg>
+            {loading ? "Parsing…" : "Parse Only"}
+          </button>
+          <button onClick={handleIngest} disabled={loading} className="btn-primary flex-1">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            {loading ? "Processing…" : "Auto-Add"}
           </button>
         </div>
       </div>
+
+      {/* Parse result */}
+      {result && (
+        <div className="card" style={{ borderColor:"rgba(99,102,241,0.3)", background:"linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(20,184,166,0.04) 100%)" }}>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full" style={{ background:"rgba(16,185,129,0.15)", border:"1px solid rgba(16,185,129,0.3)" }}>
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="#10b981" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+            </div>
+            <p className="font-semibold text-sm" style={{ color:"var(--text-primary)" }}>Parsed successfully</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
+            {[
+              { label:"Amount", value:result.amount ? `₹${parseFloat(result.amount).toLocaleString("en-IN")}` : "—", color:"var(--primary)" },
+              { label:"Merchant", value:result.merchant||"Unknown", color:"var(--accent)" },
+              { label:"Date", value:result.date||"Today", color:"var(--warning)" },
+              { label:"Type", value:result.type==="cash_withdrawal"?"ATM Withdrawal":"Expense", color:result.type==="cash_withdrawal"?"var(--warning)":"var(--info)" },
+            ].map(f => (
+              <div key={f.label} className="rounded-xl px-3 py-2.5" style={{ background:"var(--bg-tertiary)", border:"1px solid var(--border-light)" }}>
+                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color:"var(--text-muted)" }}>{f.label}</p>
+                <p className="text-sm font-bold truncate" style={{ color:f.color }}>{f.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mb-4">
+            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color:"var(--text-secondary)" }}>Category</p>
+            <div className="flex flex-wrap gap-1.5">
+              {categories.map(cat => {
+                const color = catColors[cat]; const active = selectedCategory===cat;
+                return (
+                  <button key={cat} onClick={() => setSelectedCategory(cat)} className="cat-chip"
+                    style={active ? { background:`${color}18`, borderColor:color, color } : {}}>
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <button onClick={handleSave} disabled={saving} className="btn-primary w-full">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+            {saving ? "Saving…" : "Save as Expense →"}
+          </button>
+        </div>
+      )}
     </div>
   );
 };
-
 export default SmsParser;

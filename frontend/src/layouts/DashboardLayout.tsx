@@ -2,58 +2,48 @@ import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
+import BottomNav from "../components/BottomNav";
 import CommandPalette from "../components/CommandPalette";
-import MobileBottomNav from "../components/MobileBottomNav";
+import NotificationBanner from "../components/NotificationBanner";
+import InstallPrompt from "../components/InstallPrompt";
+import UpdatePrompt from "../components/UpdatePrompt";
+import OfflineBanner from "../components/OfflineBanner";
 
 const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
         setPaletteOpen(true);
       }
-      if (event.key === "Escape") {
-        setPaletteOpen(false);
-        setSidebarOpen(false);
-      }
+      if (e.key === "Escape") setPaletteOpen(false);
     };
+
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
   return (
-    <div className="min-h-screen mesh-bg grain">
-      {/* Skip to content for accessibility */}
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only absolute left-4 top-4 z-50 rounded-lg px-3 py-2 text-sm"
-        style={{ background: "var(--lime)", color: "#080c12" }}
-      >
-        Skip to content
-      </a>
-
+    <div className="min-h-screen" style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main area shifts right on desktop to make space for sidebar */}
-      <div className="lg:pl-[240px]">
-        <Navbar
-          onOpenMenu={() => setSidebarOpen(true)}
-          onOpenPalette={() => setPaletteOpen(true)}
-        />
-
-        {/* Main content */}
-        <main
-          id="main-content"
-          className="px-4 py-6 pb-24 md:px-8 md:py-8 lg:pb-10 animate-fade-in"
-        >
+      {/* Main content - offset by sidebar on desktop */}
+      <div className="lg:pl-72">
+        <Navbar onOpenMenu={() => setSidebarOpen(true)} onOpenPalette={() => setPaletteOpen(true)} />
+        <main id="main-content" className="px-4 py-5 pb-24 md:px-6 md:py-6 lg:pb-8 lg:px-8">
+          <OfflineBanner />
+          <InstallPrompt />
+          <NotificationBanner />
           <Outlet />
         </main>
       </div>
 
-      <MobileBottomNav onOpenMore={() => setSidebarOpen(true)} />
+      {/* Bottom nav - mobile only */}
+      <BottomNav />
+      <UpdatePrompt />
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>

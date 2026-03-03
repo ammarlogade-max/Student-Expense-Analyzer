@@ -3,6 +3,7 @@ import type { User } from "./types";
 const TOKEN_KEY = "sea_token";
 const REFRESH_KEY = "sea_refresh";
 const USER_KEY = "sea_user";
+const CSRF_KEY = "sea_csrf";
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
@@ -43,5 +44,17 @@ export function setStoredUser(user: User | null) {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   } else {
     localStorage.removeItem(USER_KEY);
+  }
+}
+
+export function getCsrfToken() {
+  return localStorage.getItem(CSRF_KEY);
+}
+
+export function setCsrfToken(token: string | null) {
+  if (token) {
+    localStorage.setItem(CSRF_KEY, token);
+  } else {
+    localStorage.removeItem(CSRF_KEY);
   }
 }

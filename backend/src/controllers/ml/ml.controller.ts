@@ -28,12 +28,25 @@ export async function predictCategory(req: Request, res: Response) {
  * Parse SMS + predict category.  Used by SmsParser page.
  */
 export async function parseSms(req: Request, res: Response) {
-  const { sms_text } = req.body;
-  if (!sms_text || typeof sms_text !== "string") {
-    throw new AppError("sms_text (string) is required", 422);
+  const sms = req.body?.sms_text ?? req.body?.smsText;
+  if (!sms || typeof sms !== "string") {
+    throw new AppError("sms_text (or smsText) (string) is required", 422);
+  }
+  if (sms.length > 5000) {
+    throw new AppError("sms_text is too long (max 5000 chars)", 422);
   }
 
-  const result = await parseSmsAndPredict(sms_text.trim());
+  const sanitizedSms = sms
+    // Strip control characters to avoid payload/log injection style issues.
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!sanitizedSms) {
+    throw new AppError("sms_text is empty after sanitization", 422);
+  }
+
+  const result = await parseSmsAndPredict(sanitizedSms);
   return res.status(200).json({ success: true, result });
 }
 

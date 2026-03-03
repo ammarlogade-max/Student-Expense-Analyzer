@@ -1,8 +1,8 @@
 import rateLimit from "express-rate-limit";
 
 export const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 300,
+  windowMs: 60 * 1000,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false
 });
@@ -10,6 +10,13 @@ export const apiLimiter = rateLimit({
 export const authLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 30,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+export const mlParseLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false
 });

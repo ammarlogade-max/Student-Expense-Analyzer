@@ -1,364 +1,250 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
-import {
-  Line, LineChart, ReferenceLine,
-  ResponsiveContainer, Tooltip, XAxis, YAxis
-} from "recharts";
-import { getExpenses } from "../lib/api";
-import { getBudget, getBudgetStatus, updateBudget } from "../lib/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { getBudget, getBudgetStatus, getExpenses, updateBudget } from "../lib/api";
+import type { Budget as BudgetData, BudgetStatus } from "../lib/api";
 import type { Expense } from "../lib/types";
-import type { Budget as BudgetConfig, BudgetStatus } from "../lib/api";
 import { useToast } from "../context/ToastContext";
+import { readCache, writeCache } from "../lib/swrCache";
 
-const categories = [
-  "Food", "Shopping", "Transport", "Housing",
-  "Education", "Entertainment", "Health", "Other"
-];
+const categories = ["Food","Shopping","Transport","Housing","Education","Entertainment","Health","Other"];
 
-const catEmoji: Record<string, string> = {
-  Food: "🍔", Shopping: "🛍️", Transport: "🚇", Housing: "🏠",
-  Education: "📚", Entertainment: "🎬", Health: "💊", Other: "📦"
-};
+function statusColor(pct: number) { return pct>=90 ? "var(--error)" : pct>=70 ? "var(--warning)" : "var(--success)"; }
+function statusLabel(pct: number) { return pct>=90 ? "🔴 Over limit" : pct>=70 ? "🟡 Watch out" : "🟢 On track"; }
 
-const catColors: Record<string, string> = {
-  Food: "#c8ff00", Shopping: "#00e5c3", Transport: "#ffb930",
-  Housing: "#f97316", Education: "#60a5fa", Entertainment: "#a78bfa",
-  Health: "#ff4d6d", Other: "#6b7a99"
-};
-
-function toneColor(pct: number) {
-  if (pct >= 90) return "var(--rose)";
-  if (pct >= 70) return "var(--amber)";
-  return "var(--lime)";
-}
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-hi)", borderRadius: 12, padding: "10px 14px" }}>
-      <p style={{ color: "var(--text-muted)", fontSize: 11, marginBottom: 4 }}>Day {label}</p>
-      {payload.map((p: any) => (
-        <p key={p.dataKey} style={{ color: p.stroke, fontWeight: 700, fontSize: 14 }}>
-          {p.name}: ₹{p.value}
-        </p>
-      ))}
-    </div>
-  );
-};
+const PRESETS = [3000, 5000, 8000, 12000, 15000];
 
 const BudgetPage = () => {
   const { push } = useToast();
-  const [budget, setBudget] = useState<BudgetConfig | null>(null);
-  const [status, setStatus] = useState<BudgetStatus | null>(null);
+  const [budget, setBudget] = useState<BudgetData|null>(null);
+  const [status, setStatus] = useState<BudgetStatus|null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [limitInput, setLimitInput] = useState("");
-  const [categoryInputs, setCategoryInputs] = useState<Record<string, string>>({});
+  const [categoryInputs, setCategoryInputs] = useState<Record<string,string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [activeTab, setActiveTab] = useState<"overview"|"categories"|"forecast">("overview");
 
   const loadAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [bRes, sRes, eRes] = await Promise.allSettled([
-        getBudget(), getBudgetStatus(), getExpenses()
-      ]);
-      if (bRes.status === "fulfilled") {
-        const b = bRes.value.budget;
-        setBudget(b);
-        setLimitInput(String(b.monthlyLimit));
-        const inputs: Record<string, string> = {};
-        categories.forEach((cat) => { inputs[cat] = String(b.categoryBudgets[cat] ?? 0); });
-        setCategoryInputs(inputs);
+    const cacheKey = "budget:overview";
+    const cached = readCache<{ budget: BudgetData | null; status: BudgetStatus | null; expenses: Expense[] }>(cacheKey);
+    if (cached) {
+      setBudget(cached.budget);
+      setStatus(cached.status);
+      setExpenses(cached.expenses);
+      if (cached.budget) {
+        setLimitInput(String(cached.budget.monthlyLimit));
+        const inp: Record<string,string> = {};
+        categories.forEach(c => { inp[c] = String(cached.budget?.categoryBudgets[c] ?? 0); });
+        setCategoryInputs(inp);
       }
-      if (sRes.status === "fulfilled") setStatus(sRes.value.status);
-      if (eRes.status === "fulfilled") setExpenses(eRes.value.expenses);
-    } catch { push("Failed to load budget", "error"); }
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+    try {
+      const [bRes, sRes, eRes] = await Promise.allSettled([getBudget(), getBudgetStatus(), getExpenses()]);
+      if (bRes.status==="fulfilled") {
+        setBudget(bRes.value.budget); setLimitInput(String(bRes.value.budget.monthlyLimit));
+        const inp: Record<string,string> = {};
+        categories.forEach(c => { inp[c] = String(bRes.value.budget.categoryBudgets[c]??0); });
+        setCategoryInputs(inp);
+      }
+      if (sRes.status==="fulfilled") setStatus(sRes.value.status);
+      if (eRes.status==="fulfilled") setExpenses(eRes.value.expenses);
+
+      writeCache(cacheKey, {
+        budget: bRes.status === "fulfilled" ? bRes.value.budget : cached?.budget ?? null,
+        status: sRes.status === "fulfilled" ? sRes.value.status : cached?.status ?? null,
+        expenses: eRes.status === "fulfilled" ? eRes.value.expenses : cached?.expenses ?? [],
+      });
+    } catch { push("Failed to load budget","error"); }
     finally { setLoading(false); }
   }, []);
-
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  useEffect(() => {
-    const media = window.matchMedia("(max-width: 640px)");
-    const apply = () => setIsMobile(media.matches);
-    apply();
-    media.addEventListener("change", apply);
-    return () => media.removeEventListener("change", apply);
-  }, []);
-
-  const saveMonthlyLimit = async () => {
-    const v = Number(limitInput);
-    if (isNaN(v) || v < 0) { push("Enter a valid amount", "error"); return; }
+  const saveLimit = async () => {
+    const v = Number(limitInput); if (isNaN(v)||v<=0) { push("Budget must be greater than 0","error"); return; }
     setSaving(true);
-    try {
-      const res = await updateBudget({ monthlyLimit: v });
-      setBudget(res.budget);
-      const sRes = await getBudgetStatus();
-      setStatus(sRes.status);
-      push("Budget saved ✓", "success");
-    } catch { push("Failed to save", "error"); }
-    finally { setSaving(false); }
+    try { const res = await updateBudget({ monthlyLimit:v }); setBudget(res.budget); setStatus((await getBudgetStatus()).status); push("Budget saved!","success"); }
+    catch { push("Save failed","error"); } finally { setSaving(false); }
   };
 
-  const saveCategoryBudgets = async () => {
-    const parsed: Record<string, number> = {};
-    Object.entries(categoryInputs).forEach(([k, v]) => { parsed[k] = Math.max(0, Number(v) || 0); });
+  const saveCats = async () => {
+    const parsed: Record<string,number> = {};
+    Object.entries(categoryInputs).forEach(([k,v]) => { parsed[k] = Math.max(0,Number(v)||0); });
     setSaving(true);
-    try {
-      const res = await updateBudget({ categoryBudgets: parsed });
-      setBudget(res.budget);
-      const sRes = await getBudgetStatus();
-      setStatus(sRes.status);
-      push("Categories saved ✓", "success");
-    } catch { push("Failed to save", "error"); }
-    finally { setSaving(false); }
+    try { const res = await updateBudget({ categoryBudgets:parsed }); setBudget(res.budget); setStatus((await getBudgetStatus()).status); push("Categories saved!","success"); }
+    catch { push("Save failed","error"); } finally { setSaving(false); }
   };
 
   const { series, forecastTotal } = useMemo(() => {
-    const now = new Date();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const dailyTotals = new Array(daysInMonth).fill(0);
-    expenses.forEach((e) => {
-      const d = new Date(e.createdAt);
-      if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
-        dailyTotals[d.getDate() - 1] += e.amount;
-      }
-    });
-    let cum = 0;
-    const data = dailyTotals.map((v, i) => { cum += v; return { day: i + 1, actual: Number(cum.toFixed(2)) }; });
-    const today = now.getDate();
-    const todayTotal = data[today - 1]?.actual ?? cum;
-    const dailyAvg = today ? todayTotal / today : 0;
-    const forecast = dailyAvg * daysInMonth;
-    const series = data.map((p) => ({ ...p, forecast: Number((dailyAvg * p.day).toFixed(2)) }));
-    return { series, forecastTotal: forecast };
+    const now=new Date(); const y=now.getFullYear(),m=now.getMonth();
+    const days=new Date(y,m+1,0).getDate(); const daily=new Array(days).fill(0);
+    expenses.forEach(e => { const d=new Date(e.createdAt); if(d.getFullYear()===y&&d.getMonth()===m) daily[d.getDate()-1]+=e.amount; });
+    let cum=0; const data=daily.map((v,i) => { cum+=v; return { day:i+1, actual:Number(cum.toFixed(2)) }; });
+    const today=now.getDate(); const avg=today?(data[today-1]?.actual??0)/today:0;
+    return { series:data.map(p=>({...p,forecast:Number((avg*p.day).toFixed(2))})), forecastTotal:avg*days };
   }, [expenses]);
 
-  const limit = budget?.monthlyLimit ?? 0;
-  const spent = status?.totalSpent ?? 0;
-  const pct = status?.percentUsed ?? 0;
-  const remaining = status?.remaining ?? 0;
-  const color = toneColor(pct);
+  const monthlyLimit=budget?.monthlyLimit??0, totalSpent=status?.totalSpent??0, pct=status?.percentUsed??0, remaining=status?.remaining??0;
+  const sc = statusColor(pct);
+
+  const tabs = [
+    { id:"overview" as const, label:"Setup", icon:<svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg> },
+    { id:"categories" as const, label:"Categories", icon:<svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg> },
+    { id:"forecast" as const, label:"Forecast", icon:<svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> },
+  ];
 
   return (
-    <div className="space-y-5 stagger">
+    <div className="space-y-4 stagger">
+      <div>
+        <h1 className="text-2xl font-bold" style={{ fontFamily:"var(--font-display)", color:"var(--text-primary)" }}>Budget</h1>
+        <p className="text-sm" style={{ color:"var(--text-secondary)" }}>Smart spending limits — synced across all your devices</p>
+      </div>
 
-      {/* ── Overview hero ─────────────────────────────────────── */}
-      <div className="card p-6 animate-fade-up" style={{
-        background: "linear-gradient(135deg, rgba(200,255,0,0.07) 0%, rgba(0,229,195,0.04) 60%, var(--bg-card) 100%)",
-        border: "1px solid rgba(200,255,0,0.12)"
-      }}>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      {/* Status hero */}
+      <div className="card card-gradient">
+        <div className="flex items-start justify-between mb-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] mb-2" style={{ color: "var(--text-muted)" }}>
-              Monthly Budget
-            </p>
-            {loading ? (
-              <div className="skeleton h-12 w-40 rounded-xl" />
-            ) : (
-              <p className="font-black leading-none" style={{ fontFamily: "var(--font-display)", color, fontSize: "clamp(2rem, 8vw, 3rem)" }}>
-                ₹{spent.toLocaleString("en-IN")}
-              </p>
-            )}
-            <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-              of ₹{limit.toLocaleString("en-IN")} limit
+            <p className="text-xs uppercase tracking-widest mb-1" style={{ color:"var(--text-tertiary)" }}>Monthly Budget</p>
+            <p className="text-3xl font-bold" style={{ fontFamily:"var(--font-display)", color:sc }}>
+              ₹{monthlyLimit.toLocaleString("en-IN")}
             </p>
           </div>
-          <div className="sm:text-right">
-            <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>Remaining</p>
-            <p className="font-bold leading-tight" style={{ fontFamily: "var(--font-display)", color: remaining < 0 ? "var(--rose)" : "var(--lime)", fontSize: "clamp(1.375rem, 6vw, 1.875rem)" }}>
-              {loading ? "—" : `₹${Math.abs(remaining).toLocaleString("en-IN")}`}
-            </p>
-            {remaining < 0 && <p className="text-xs mt-1" style={{ color: "var(--rose)" }}>Over budget!</p>}
+          <div className="flex flex-col items-end gap-1">
+            <span className="badge text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background:`${sc}18`, color:sc, border:`1px solid ${sc}30` }}>
+              {statusLabel(pct)}
+            </span>
+            <p className="text-xs" style={{ color:"var(--text-tertiary)" }}>₹{totalSpent.toLocaleString("en-IN")} spent</p>
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="mt-5">
-          <div className="flex justify-between text-xs mb-2" style={{ color: "var(--text-muted)" }}>
-            <span>Usage</span>
-            <span style={{ color }}>{pct.toFixed(1)}%</span>
-          </div>
-          <div className="progress-track" style={{ height: 8 }}>
-            <div className="progress-fill" style={{ width: `${pct}%`, background: color, boxShadow: `0 0 12px ${color}40` }} />
-          </div>
+        <div className="progress-track" style={{ height:8 }}>
+          <div className="progress-bar" style={{ width:`${Math.min(pct,100)}%`, background:sc }}/>
+        </div>
+        <div className="flex items-center justify-between mt-2 text-xs">
+          <span style={{ color:"var(--text-tertiary)" }}>{pct.toFixed(1)}% used</span>
+          <span style={{ color:remaining<0?"var(--error)":"var(--success)" }}>
+            {remaining<0 ? `Over by ₹${Math.abs(remaining).toLocaleString("en-IN")}` : `₹${remaining.toLocaleString("en-IN")} remaining`}
+          </span>
         </div>
 
-        {/* Status message */}
-        {!loading && limit > 0 && (
-          <div className="mt-4 px-4 py-3 rounded-xl text-sm font-medium" style={{
-            background: pct >= 90 ? "rgba(255,77,109,0.08)" : pct >= 70 ? "rgba(255,185,48,0.08)" : "rgba(200,255,0,0.06)",
-            border: `1px solid ${pct >= 90 ? "rgba(255,77,109,0.2)" : pct >= 70 ? "rgba(255,185,48,0.2)" : "rgba(200,255,0,0.15)"}`,
-            color
-          }}>
-            {pct >= 90 ? "⚠️ Critical — you're nearly out of budget. Pause discretionary spending."
-              : pct >= 70 ? "🟡 Getting close — keep an eye on big purchases."
-              : "✅ On track! You're managing your budget well."}
+        {pct >= 70 && (
+          <div className="mt-4 rounded-xl px-4 py-3 text-sm" style={{ background:`${sc}10`, border:`1px solid ${sc}25`, color:sc }}>
+            {pct>=90 ? "You're very close to your limit — consider pausing large purchases this week." : "You're approaching your budget limit. Keep discretionary spending low."}
           </div>
         )}
       </div>
 
-      {/* ── Set limit + categories ─────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-2 animate-fade-up" style={{ animationDelay: "60ms" }}>
-
-        {/* Set monthly limit */}
-        <div className="card p-5">
-          <h3 className="font-bold text-base mb-1" style={{ fontFamily: "var(--font-display)" }}>Set Monthly Limit</h3>
-          <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>Saved to your account — syncs across devices</p>
-
-          <div className="space-y-3">
-            <div>
-              <label className="block text-[11px] uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
-                Monthly limit (₹)
-              </label>
-              <input
-                type="number" min="0"
-                value={limitInput}
-                onChange={(e) => setLimitInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && saveMonthlyLimit()}
-                placeholder="e.g. 10000"
-                style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-display)" }}
-                disabled={loading}
-              />
-            </div>
-            <button onClick={saveMonthlyLimit} disabled={saving || loading} className="btn-primary w-full">
-              {saving ? "Saving..." : "Save Budget →"}
-            </button>
-          </div>
-
-          {/* 3 quick stat chips */}
-          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {[
-              { label: "Spent", value: `₹${spent.toFixed(0)}`, color: "var(--rose)" },
-              { label: "% Used", value: `${pct.toFixed(0)}%`, color },
-              { label: "Forecast", value: `₹${forecastTotal.toFixed(0)}`, color: "var(--amber)" },
-            ].map((s) => (
-              <div key={s.label} className="text-center p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
-                <p className="font-bold text-sm" style={{ color: s.color, fontFamily: "var(--font-display)" }}>
-                  {loading ? "—" : s.value}
-                </p>
-                <p className="text-[10px] uppercase tracking-wider mt-0.5" style={{ color: "var(--text-muted)" }}>{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Category budgets */}
-        <div className="card p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
-            <div>
-              <h3 className="font-bold text-base" style={{ fontFamily: "var(--font-display)" }}>Category Limits</h3>
-              <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Set per-category spending caps</p>
-            </div>
-            <button onClick={saveCategoryBudgets} disabled={saving || loading} className="btn-primary w-full sm:w-auto px-4 py-2 text-xs">
-              {saving ? "Saving..." : "Save All"}
-            </button>
-          </div>
-
-          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-            {categories.map((cat) => {
-              const color = catColors[cat] || "#6b7a99";
-              const saved = budget?.categoryBudgets?.[cat] ?? 0;
-              const catPct = status?.categoryStatus?.[cat]?.percentUsed ?? 0;
-              const catSpent = status?.spentByCategory?.[cat] ?? 0;
-              const isOver = status?.categoryStatus?.[cat]?.isOver;
-
-              return (
-                <div key={cat}>
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="flex items-center gap-1.5 font-medium">
-                      {catEmoji[cat]} {cat}
-                    </span>
-                    {saved > 0 && (
-                      <span style={{ color: isOver ? "var(--rose)" : "var(--text-muted)" }}>
-                        ₹{catSpent.toFixed(0)} / ₹{saved}
-                      </span>
-                    )}
-                  </div>
-                  {saved > 0 && (
-                    <div className="progress-track mb-2" style={{ height: 3 }}>
-                      <div className="progress-fill" style={{ width: `${catPct}%`, background: toneColor(catPct) }} />
-                    </div>
-                  )}
-                  <input
-                    type="number" min="0"
-                    value={categoryInputs[cat] ?? "0"}
-                    onChange={(e) => setCategoryInputs({ ...categoryInputs, [cat]: e.target.value })}
-                    className="w-full"
-                    style={{ padding: "11px 12px", minHeight: 44, fontSize: 13, borderColor: saved > 0 ? `${color}40` : undefined }}
-                    placeholder={`${cat} limit`}
-                  />
-                  {isOver && (
-                    <p className="text-[11px] mt-1" style={{ color: "var(--rose)" }}>
-                      ⚠️ Over by ₹{Math.abs(status?.categoryStatus?.[cat]?.remaining ?? 0).toFixed(0)}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+      {/* Tab switcher */}
+      <div className="tab-bar">
+        {tabs.map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`tab-item ${activeTab===tab.id?"active":""}`}>
+            {tab.icon}
+            <span className="hidden sm:inline">{tab.label}</span>
+          </button>
+        ))}
       </div>
 
-      {/* ── Forecast chart ────────────────────────────────────── */}
-      <div className="card p-5 animate-fade-up" style={{ animationDelay: "120ms" }}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+      {/* Setup tab */}
+      {activeTab==="overview" && (
+        <div className="card space-y-5">
           <div>
-            <h3 className="font-bold text-base" style={{ fontFamily: "var(--font-display)" }}>Spending Forecast</h3>
-            <p className="hidden sm:block text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Actual vs projected based on daily average</p>
+            <h3 className="font-semibold mb-1" style={{ color:"var(--text-primary)" }}>Set Monthly Budget</h3>
+            <p className="text-sm" style={{ color:"var(--text-secondary)" }}>Saved to your account — works across all devices.</p>
           </div>
-          <div className="w-full sm:w-auto px-4 py-2 rounded-xl text-sm" style={{ background: "rgba(255,185,48,0.08)", border: "1px solid rgba(255,185,48,0.2)" }}>
-            <span style={{ color: "var(--text-muted)", fontSize: 11 }}>Month forecast </span>
-            <span className="font-bold" style={{ color: "var(--amber)" }}>₹{forecastTotal.toFixed(0)}</span>
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color:"var(--text-secondary)" }}>Amount (₹)</label>
+            <input type="number" min="0" value={limitInput} onChange={e => setLimitInput(e.target.value)} placeholder="e.g. 8000" style={{ fontSize:20, fontWeight:700 }}/>
           </div>
+          <div>
+            <p className="text-xs mb-2" style={{ color:"var(--text-tertiary)" }}>Quick presets</p>
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map(p => (
+                <button key={p} onClick={() => setLimitInput(String(p))}
+                  className={`btn-ghost !px-3 !py-2 text-sm ${Number(limitInput)===p ? "!border-[var(--primary)] !text-[var(--primary)]" : ""}`}>
+                  ₹{p.toLocaleString("en-IN")}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button onClick={saveLimit} disabled={saving||loading} className="btn-primary w-full">
+            {saving ? "Saving…" : "Save Budget →"}
+          </button>
         </div>
+      )}
 
-        <div className="h-52 sm:h-60">
-          {loading ? (
-            <div className="skeleton h-full rounded-xl" />
-          ) : series.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center rounded-xl" style={{ border: "1px dashed rgba(255,255,255,0.08)" }}>
-              <p className="text-3xl mb-2">📊</p>
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>Add expenses to see forecast</p>
+      {/* Categories tab */}
+      {activeTab==="categories" && (
+        <div className="space-y-3">
+          {categories.map(cat => {
+            const catStatus=status?.categoryStatus?.[cat];
+            const savedLimit=budget?.categoryBudgets?.[cat]??0;
+            const spent=status?.spentByCategory?.[cat]??0;
+            const catPct=catStatus?.percentUsed??0;
+            const cc=statusColor(catPct);
+            return (
+              <div key={cat} className="card !p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-semibold" style={{ color:"var(--text-primary)" }}>{cat}</span>
+                  {savedLimit>0 && <span className="text-xs" style={{ color:"var(--text-tertiary)" }}>₹{spent.toLocaleString("en-IN")} / ₹{savedLimit.toLocaleString("en-IN")}</span>}
+                </div>
+                {savedLimit>0 && (
+                  <div className="progress-track mb-3">
+                    <div className="progress-bar" style={{ width:`${Math.min(catPct,100)}%`, background:cc }}/>
+                  </div>
+                )}
+                <input type="number" min="0" value={categoryInputs[cat]??"0"} onChange={e => setCategoryInputs({...categoryInputs,[cat]:e.target.value})}/>
+                {catStatus?.isOver && <p className="mt-2 text-xs" style={{ color:"var(--error)" }}>Over budget by ₹{Math.abs(catStatus.remaining).toLocaleString("en-IN")}</p>}
+              </div>
+            );
+          })}
+          <button onClick={saveCats} disabled={saving||loading} className="btn-primary w-full sticky bottom-20 lg:static">
+            {saving ? "Saving…" : "Save All Categories →"}
+          </button>
+        </div>
+      )}
+
+      {/* Forecast tab */}
+      {activeTab==="forecast" && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="font-semibold" style={{ color:"var(--text-primary)" }}>Budget vs Actual</h3>
+              <p className="text-xs" style={{ color:"var(--text-secondary)" }}>Forecast based on daily average</p>
+            </div>
+            <div className="rounded-xl px-3 py-2 text-sm" style={{ background:"var(--bg-tertiary)", border:"1px solid var(--border-light)" }}>
+              <span style={{ color:"var(--text-tertiary)" }}>Forecast: </span>
+              <span className="font-bold" style={{ color:"var(--text-primary)" }}>₹{forecastTotal.toFixed(0)}</span>
+            </div>
+          </div>
+          {loading ? <div className="skeleton h-56"/> : series.length===0 ? (
+            <div className="flex h-56 flex-col items-center justify-center" style={{ border:"1px dashed var(--border-medium)", borderRadius:"var(--radius-lg)" }}>
+              <span className="text-3xl mb-2">📊</span>
+              <p className="text-sm" style={{ color:"var(--text-secondary)" }}>Add expenses to see forecast</p>
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={series}>
-                <XAxis dataKey="day" stroke="var(--text-muted)" tick={{ fontSize: 11 }} interval={isMobile ? 4 : 1} />
-                <YAxis stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
-                <Tooltip content={<CustomTooltip />} />
-                <Line type="monotone" dataKey="actual" stroke="var(--lime)" strokeWidth={2.5} dot={false} name="Actual" />
-                <Line type="monotone" dataKey="forecast" stroke="var(--amber)" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Forecast" />
-                {limit > 0 && (
-                  <ReferenceLine y={limit} stroke="var(--rose)" strokeDasharray="4 4"
-                    label={{ value: "Limit", fill: "var(--rose)", fontSize: 11, position: "right" }} />
-                )}
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={series} margin={{ top:5,right:10,bottom:5,left:0 }}>
+                  <XAxis dataKey="day" stroke="rgba(255,255,255,0.1)" tick={{ fontSize:10, fill:"var(--text-tertiary)" }}/>
+                  <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fontSize:10, fill:"var(--text-tertiary)" }} width={50} tickFormatter={v=>`₹${v>=1000?`${(v/1000).toFixed(0)}k`:v}`}/>
+                  <Tooltip contentStyle={{ background:"var(--bg-secondary)", border:"1px solid var(--border-medium)", borderRadius:12, color:"var(--text-primary)" }}/>
+                  <Line type="monotone" dataKey="actual" stroke="#6366f1" strokeWidth={2.5} dot={false} name="Actual"/>
+                  <Line type="monotone" dataKey="forecast" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="5 5" dot={false} name="Forecast"/>
+                  {monthlyLimit>0 && <ReferenceLine y={monthlyLimit} stroke="#ef4444" strokeDasharray="4 4" label={{ value:"Limit", fill:"#ef4444", fontSize:10 }}/>}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           )}
+          <div className="mt-4 flex flex-wrap gap-4 text-xs" style={{ color:"var(--text-tertiary)" }}>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded" style={{ background:"#6366f1" }}/>Actual</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded" style={{ background:"#f59e0b" }}/>Forecast</span>
+            {monthlyLimit>0 && <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded" style={{ background:"#ef4444" }}/>Limit</span>}
+          </div>
         </div>
-
-        <p className="block sm:hidden text-xs mt-3" style={{ color: "var(--text-muted)" }}>
-          Actual vs projected based on daily average
-        </p>
-
-        {/* Legend */}
-        <div className="flex flex-wrap gap-4 mt-4 text-xs" style={{ color: "var(--text-muted)" }}>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-5 rounded" style={{ background: "var(--lime)" }} /> Actual
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-5 rounded" style={{ background: "var(--amber)", opacity: 0.7 }} /> Forecast
-          </span>
-          {limit > 0 && (
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2 w-5 rounded" style={{ background: "var(--rose)" }} /> Budget limit
-            </span>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 };
-
 export default BudgetPage;

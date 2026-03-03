@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authenticate } from "../../middlewares/auth/auth.middleware";
+import { requireCsrf } from "../../middlewares/csrf.middleware";
 import { validate } from "../../middlewares/validate.middleware";
 import {
   getBudget,
@@ -16,6 +17,6 @@ const router = Router();
 
 router.get("/", authenticate, getBudget);
 router.get("/status", authenticate, getBudgetStatusHandler);
-router.patch("/", authenticate, validate({ body: budgetUpdateSchema }), updateBudgetHandler);
+router.patch("/", authenticate, requireCsrf, validate({ body: budgetUpdateSchema }), updateBudgetHandler);
 
 export default router;

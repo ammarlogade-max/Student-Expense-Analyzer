@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>You're Offline — ExpenseIQ</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      background: #0f1115;
+      color: #f8fafc;
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 40px;
+    }
+    .logo-badge {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 900; color: white;
+    }
+    .logo-text { font-size: 18px; font-weight: 700; }
+    .logo-text span { color: #6366f1; }
+    .icon-wrap {
+      width: 80px; height: 80px;
+      border-radius: 24px;
+      background: rgba(99,102,241,0.12);
+      border: 1px solid rgba(99,102,241,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+      margin-bottom: 24px;
+    }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+    p  { font-size: 14px; color: #94a3b8; line-height: 1.6; max-width: 300px; margin-bottom: 32px; }
+    .tips {
+      background: #161920;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      padding: 20px;
+      width: 100%;
+      max-width: 320px;
+      margin-bottom: 32px;
+      text-align: left;
+    }
+    .tips h3 { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+    .tip {
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-bottom: 10px;
+    }
+    .tip-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .tip-text { font-size: 13px; color: #94a3b8; line-height: 1.5; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+      color: white; border: none; border-radius: 12px;
+      padding: 12px 24px; font-size: 14px; font-weight: 600;
+      cursor: pointer; text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .status {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #475569;
+    }
+    #online-indicator {
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #ef4444;
+    }
+    .dot.online { background: #10b981; }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <div class="logo-badge">IQ</div>
+    <div class="logo-text">Expense<span>IQ</span></div>
+  </div>
+
+  <div class="icon-wrap">📡</div>
+  <h1>You're offline</h1>
+  <p>No internet connection detected. Your cached data is still available — reconnect to sync new expenses.</p>
+
+  <div class="tips">
+    <h3>What still works offline</h3>
+    <div class="tip">
+      <span class="tip-icon">✅</span>
+      <span class="tip-text">View your dashboard and recent expenses (cached)</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">✅</span>
+      <span class="tip-text">Log expenses — they'll sync when you're back online</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">✅</span>
+      <span class="tip-text">View your Finance Score and budget limits</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">❌</span>
+      <span class="tip-text">SMS parsing and AI features need internet</span>
+    </div>
+  </div>
+
+  <button class="btn" onclick="window.location.reload()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+    </svg>
+    Try again
+  </button>
+
+  <div class="status">
+    <span id="online-indicator">
+      <span class="dot" id="dot"></span>
+      <span id="status-text">No connection</span>
+    </span>
+  </div>
+
+  <script>
+    function updateStatus() {
+      const dot  = document.getElementById('dot');
+      const text = document.getElementById('status-text');
+      if (navigator.onLine) {
+        dot.classList.add('online');
+        text.textContent = 'Back online — ';
+        // Auto-redirect after 1.5s
+        setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
+      } else {
+        dot.classList.remove('online');
+        text.textContent = 'No connection';
+      }
+    }
+    window.addEventListener('online',  updateStatus);
+    window.addEventListener('offline', updateStatus);
+    updateStatus();
+  </script>
+</body>
+</html>

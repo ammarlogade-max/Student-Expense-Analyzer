@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authenticate } from "../../middlewares/auth/auth.middleware";
+import { requireCsrf } from "../../middlewares/csrf.middleware";
 import { validate } from "../../middlewares/validate.middleware";
 import {
   createCashAdjustment,
@@ -31,29 +32,33 @@ router.get(
 router.post(
   "/withdrawals",
   authenticate,
+  requireCsrf,
   validate({ body: cashWithdrawalSchema }),
   createCashWithdrawal
 );
 router.post(
   "/expenses",
   authenticate,
+  requireCsrf,
   validate({ body: cashExpenseSchema }),
   createCashExpense
 );
 router.post(
   "/adjustments",
   authenticate,
+  requireCsrf,
   validate({ body: cashAdjustmentSchema }),
   createCashAdjustment
 );
 router.post(
   "/voice-entry",
   authenticate,
+  requireCsrf,
   validate({ body: cashVoiceSchema }),
   createCashExpenseFromVoice
 );
 router.get("/reconciliation/weekly", authenticate, getWeeklyReconciliation);
-router.post("/reconciliation/run-now", authenticate, runWeeklyReconciliationNow);
+router.post("/reconciliation/run-now", authenticate, requireCsrf, runWeeklyReconciliationNow);
 
 export default router;
 

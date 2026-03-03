@@ -1,0 +1,85 @@
+# ── ExpenseIQ — docker-compose.yml (local dev / testing) ─────────────────────
+# Use this to simulate production locally before deploying.
+# Uses local PostgreSQL — in production we use Neon.
+#
+# Usage:
+#   docker-compose up --build        # first run (builds images)
+#   docker-compose up -d             # detached background
+#   docker-compose logs -f backend   # tail backend logs
+#   docker-compose down              # stop (keeps data)
+#   docker-compose down -v           # stop + wipe data
+
+version: "3.9"
+
+services:
+  # ── PostgreSQL (local only — Neon is used in production) ───────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: expenseiq-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       expenseiq
+      POSTGRES_USER:     expenseiq
+      POSTGRES_PASSWORD: localdev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U expenseiq"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Backend ────────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: expenseiq-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV:     production
+      PORT:         5000
+      DATABASE_URL: postgresql://expenseiq:localdev@postgres:5432/expenseiq
+      JWT_SECRET:   local_jwt_secret_change_in_production
+      REFRESH_SECRET: local_refresh_secret_change_in_production
+      JWT_EXPIRES_IN: 7d
+      REFRESH_EXPIRES_IN: 30d
+      CORS_ORIGIN:  http://localhost:5173
+      ML_SERVICE_URL: http://ml:8001
+      # Firebase: mount your service account JSON as a bind mount below
+      FIREBASE_SERVICE_ACCOUNT_PATH: /run/secrets/firebase-sa
+    volumes:
+      - ./backend/firebase-service-account.json:/run/secrets/firebase-sa:ro
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── ML Service ─────────────────────────────────────────────────────────────
+  ml:
+    build:
+      context: ./ml_service
+      dockerfile: Dockerfile
+    container_name: expenseiq-ml
+    restart: unless-stopped
+    environment:
+      ML_SERVICE_PORT: 8001
+      MODEL_PATH: /app/expense_model.pkl
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
