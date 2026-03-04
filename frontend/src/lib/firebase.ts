@@ -31,6 +31,7 @@ const firebaseConfig = {
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
 let _messaging: Messaging | null = null;
+let _messagingSwRegPromise: Promise<ServiceWorkerRegistration | null> | null = null;
 
 export function getFirebaseMessaging(): Messaging | null {
   if (_messaging) return _messaging;
@@ -42,6 +43,21 @@ export function getFirebaseMessaging(): Messaging | null {
   } catch {
     return null;
   }
+}
+
+async function getFirebaseMessagingServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
+  if (_messagingSwRegPromise) return _messagingSwRegPromise;
+
+  _messagingSwRegPromise = navigator.serviceWorker
+    .register("/firebase-messaging-sw.js", { scope: "/firebase-cloud-messaging-push-scope" })
+    .then((registration) => registration)
+    .catch((err) => {
+      console.warn("[FCM] Failed to register firebase-messaging-sw.js:", err);
+      return null;
+    });
+
+  return _messagingSwRegPromise;
 }
 
 /**
@@ -56,9 +72,12 @@ export async function requestFcmToken(): Promise<string | null> {
     const permission = await Notification.requestPermission();
     if (permission !== "granted") return null;
 
+    const firebaseSwRegistration =
+      (await getFirebaseMessagingServiceWorkerRegistration()) ?? (await navigator.serviceWorker.ready);
+
     const token = await getToken(messaging, {
       vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
-      serviceWorkerRegistration: await navigator.serviceWorker.ready,
+      serviceWorkerRegistration: firebaseSwRegistration,
     });
 
     return token || null;
