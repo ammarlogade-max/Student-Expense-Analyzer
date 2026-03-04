@@ -5,6 +5,7 @@ import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useToast } from "../context/ToastContext";
 import Modal from "../components/Modal";
 import { getBudget, updateBudget } from "../lib/api";
+import NotificationDebug from "../components/NotificationDebug";
 
 const categories = ["Food", "Shopping", "Transport", "Housing", "Education", "Entertainment", "Health", "Other"];
 
@@ -171,6 +172,8 @@ const Settings = () => {
           </button>
         </div>
       </div>
+
+      <NotificationDebug />
 
       <div className="card !p-0 overflow-hidden">
         <p className="px-5 pb-2 pt-4 text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>

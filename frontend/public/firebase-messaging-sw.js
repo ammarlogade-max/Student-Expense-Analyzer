@@ -1,144 +1,64 @@
 /**
- * ExpenseIQ — Firebase Cloud Messaging Service Worker
+ * firebase-messaging-sw.js
  *
- * This file MUST be at /public/firebase-messaging-sw.js
- * (served from the root of your domain).
+ * IMPORTANT: This file is auto-populated at build time by scripts/inject-sw-env.js
+ * The __FIREBASE_*__ placeholders are replaced with real values from .env
+ * DO NOT hardcode real values here — they get committed to git.
  *
- * What it does:
- *   1. Receives background push notifications from FCM
- *   2. Shows them using the Notifications API
- *   3. Handles notification action button clicks:
- *        🎤 Speak  → opens mic in a special popup, sends audio to backend
- *        ✏️ Type   → opens a tiny input popup, sends text to backend
- *   4. Sends the user's input to POST /api/notifications/action
+ * If you see "YOUR_API_KEY" in production, the inject script didn't run.
  */
-
 
 importScripts("https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js");
 
-
-// ── Firebase initialisation ──────────────────────────────────────────────────
-// These values must match your firebase.ts config.
 firebase.initializeApp({
-  apiKey:            "AIzaSyAJr8DBw70N6QLLTngMzbMxFF4GwA-Sh8o",
-  authDomain:        "expenseiq-6ec61.firebaseapp.com",
-  projectId:         "expenseiq-6ec61",
-  storageBucket:     "expenseiq-6ec61.firebasestorage.app",
-  messagingSenderId: "316146942822",
-  appId:             "1:316146942822:web:d37c1f834c51fe75d1bea7",
+  apiKey:            "__FIREBASE_API_KEY__",
+  authDomain:        "__FIREBASE_AUTH_DOMAIN__",
+  projectId:         "__FIREBASE_PROJECT_ID__",
+  storageBucket:     "__FIREBASE_STORAGE_BUCKET__",
+  messagingSenderId: "__FIREBASE_MESSAGING_SENDER_ID__",
+  appId:             "__FIREBASE_APP_ID__",
 });
-
 
 const messaging = firebase.messaging();
 
-
-// ── Background message handler ───────────────────────────────────────────────
+// ── Background message handler ────────────────────────────────────────────────
 messaging.onBackgroundMessage((payload) => {
-  console.log("[SW] Background message received:", payload);
-
-
   const { title, body } = payload.notification ?? {};
-  const data   = payload.data ?? {};
-  const type   = data.type ?? "";
+  const data = payload.data ?? {};
 
-
-  // Parse action buttons sent from the backend
   let actions = [];
-  try {
-    actions = JSON.parse(data.actions ?? "[]");
-  } catch { /* ignore parse error */ }
+  try { actions = JSON.parse(data.actions ?? "[]"); } catch {}
 
-
-  const notifOptions = {
-    body:             body ?? "",
-    icon:             "/icon-192.png",
-    badge:            "/badge-72.png",
-    tag:              type,          // deduplicates: same tag = replaces old notif
-    requireInteraction: actions.length > 0, // keep visible if it has action buttons
+  self.registration.showNotification(title ?? "ExpenseIQ", {
+    body:               body ?? "",
+    icon:               "/icons/icon-192.png",
+    badge:              "/icons/badge-72.png",
+    tag:                data.type ?? "expenseiq",
+    requireInteraction: actions.length > 0,
+    vibrate:            [200, 100, 200],
     data,
-    // Action buttons — shown natively on Chrome for Android + Chrome Desktop
-    actions: actions.map((a) => ({
-      action: a.action,
-      title:  a.title,
-      icon:   a.icon,
-    })),
-    // Visual tweaks
-    vibrate: [200, 100, 200],
-    timestamp: Date.now(),
-  };
-
-
-  return self.registration.showNotification(title ?? "ExpenseIQ", notifOptions);
+    actions: actions.map((a) => ({ action: a.action, title: a.title })),
+  });
 });
 
-
-// ── Notification click handler ────────────────────────────────────────────────
+// ── Notification click ────────────────────────────────────────────────────────
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const data   = event.notification.data ?? {};
+  const action = event.action;
 
+  let url = "/dashboard";
+  if (action === "voice_entry") url = "/notification-voice";
+  else if (action === "text_entry") url = "/notification-text";
+  else if (data.action_url) url = data.action_url;
 
-  const data   = event.notification.data ?? {};
-  const action = event.action; // which button was tapped ("voice_entry" | "text_entry" | "")
-
-
-  console.log("[SW] Notification clicked:", action || "(body tap)");
-
-
-  if (action === "voice_entry") {
-    // ── 🎤 Speak button ────────────────────────────────────────────────────
-    // Open a tiny popup that activates the mic, transcribes, then posts
-    event.waitUntil(
-      openActionWindow("/notification-voice", data)
-    );
-
-
-  } else if (action === "text_entry") {
-    // ── ✏️ Type button ─────────────────────────────────────────────────────
-    // Open a tiny popup with a text input
-    event.waitUntil(
-      openActionWindow("/notification-text", data)
-    );
-
-
-  } else {
-    // ── Body tap — navigate to action_url or home ──────────────────────────
-    const url = data.action_url ?? "/dashboard";
-    event.waitUntil(focusOrOpenWindow(url));
-  }
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const c of clients) {
+        if (c.url.includes(url)) { c.focus(); return; }
+      }
+      return self.clients.openWindow(url);
+    })
+  );
 });
-
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-
-async function openActionWindow(path, data) {
-  const params = new URLSearchParams({ data: JSON.stringify(data) });
-  const url    = `${path}?${params.toString()}`;
-
-
-  // Try to focus an existing popup with this path
-  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-  for (const client of clients) {
-    if (client.url.includes(path)) {
-      await client.focus();
-      return;
-    }
-  }
-
-
-  // Open as a small popup window
-  return self.clients.openWindow(url);
-}
-
-
-async function focusOrOpenWindow(url) {
-  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-  for (const client of clients) {
-    if (client.url.includes(url)) {
-      await client.focus();
-      return;
-    }
-  }
-  return self.clients.openWindow(url);
-}
