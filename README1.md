@@ -198,7 +198,7 @@ no credit card needed.
    ```bash
    curl https://expenseiq-ml.onrender.com/health
    ```
-6. Copy the ML Service ID (Settings → Service ID)
+6. Copy the ML Service ID (Settings → Service ID) srv-d6j9v6f5r7bs73etffvg
 
 7. Go back to your **backend** service → **Environment** tab → update:
    - `ML_SERVICE_URL` → `https://expenseiq-ml.onrender.com`
@@ -221,7 +221,7 @@ no credit card needed.
 
    | Key | Value |
    |---|---|
-   | `VITE_API_URL` | `https://expenseiq-backend.onrender.com/api` |
+   | `VITE_PI_URAL` | `https://expenseiq-backend.onrender.com/api` |
    | `VITE_FIREBASE_API_KEY` | from Firebase Console |
    | `VITE_FIREBASE_AUTH_DOMAIN` | from Firebase Console |
    | `VITE_FIREBASE_PROJECT_ID` | from Firebase Console |

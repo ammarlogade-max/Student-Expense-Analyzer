@@ -1,11 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { usePushNotifications } from "../hooks/usePushNotifications";
+import { useToast } from "../context/ToastContext";
 
 function ChevronRight() { return <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 ml-auto" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6"/></svg>; }
 
 const Settings = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { push } = useToast();
+  const { isEnabled, isGranted, isUnsupported, requestPermission, disableNotifications } = usePushNotifications();
 
   const profileFields = [
     { label:"Full Name", value:user?.name||"—" },
@@ -85,6 +89,51 @@ const Settings = () => {
         </div>
         
         <p className="text-xs" style={{ color:"var(--text-muted)" }}>Built with ❤️ by Ammar · AI-Powered Finance for Students</p>
+      </div>
+
+      {/* Notifications */}
+      <div className="card">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Mobile Notifications</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-tertiary)" }}>
+              {isUnsupported
+                ? "Not supported on this device/browser"
+                : isEnabled
+                  ? "Enabled for this device"
+                  : isGranted
+                    ? "Permission granted but notifications are off for this device"
+                    : "Off"}
+            </p>
+          </div>
+          {isEnabled ? (
+            <button
+              onClick={async () => {
+                await disableNotifications();
+                push("Mobile notifications turned off", "info");
+              }}
+              className="btn-secondary"
+              style={{ color: "var(--error)", borderColor: "rgba(239,68,68,0.25)" }}
+            >
+              Turn Off
+            </button>
+          ) : (
+            <button
+              onClick={async () => {
+                await requestPermission();
+                if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+                  push("Mobile notifications enabled", "success");
+                } else {
+                  push("Notification permission not granted", "error");
+                }
+              }}
+              className="btn-primary"
+              disabled={isUnsupported}
+            >
+              Turn On
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Logout */}

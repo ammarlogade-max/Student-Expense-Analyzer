@@ -49,6 +49,7 @@ export function usePushNotifications() {
   const [permissionState, setPermissionState] = useState<PermissionState>("unknown");
   const [fcmToken, setFcmToken] = useState<string | null>(null);
   const authTokenRef = useRef<string | null>(null);
+  const OPT_OUT_KEY = "expenseiq_push_opt_out";
 
   useEffect(() => {
     authTokenRef.current = getToken();
@@ -68,6 +69,7 @@ export function usePushNotifications() {
   }, []);
 
   const requestPermission = useCallback(async () => {
+    localStorage.removeItem(OPT_OUT_KEY);
     if (!("Notification" in window)) {
       setPermissionState("unsupported");
       return;
@@ -84,6 +86,12 @@ export function usePushNotifications() {
   // Auto-request if previously granted
   useEffect(() => {
     if (!user) return;
+    const optedOut = localStorage.getItem(OPT_OUT_KEY) === "1";
+    if (optedOut) {
+      setFcmToken(null);
+      setPermissionState(typeof Notification !== "undefined" && Notification.permission === "granted" ? "granted" : "unknown");
+      return;
+    }
     const perm = typeof Notification !== "undefined" ? Notification.permission : "default";
     if (perm === "granted") {
       setPermissionState("granted");
@@ -92,6 +100,22 @@ export function usePushNotifications() {
       setPermissionState("denied");
     }
   }, [user, registerWithBackend]);
+
+  const disableNotifications = useCallback(async () => {
+    localStorage.setItem(OPT_OUT_KEY, "1");
+    const saved = localStorage.getItem("expenseiq_fcm_token");
+    const authToken = authTokenRef.current;
+    const csrfToken = getCsrfToken();
+    if (saved && authToken) {
+      try {
+        await apiRemoveToken(saved, authToken, csrfToken);
+      } catch (err) {
+        console.warn("[Push] Failed to remove token:", err);
+      }
+    }
+    localStorage.removeItem("expenseiq_fcm_token");
+    setFcmToken(null);
+  }, []);
 
   // Foreground message → toast
   useEffect(() => {
@@ -125,6 +149,8 @@ export function usePushNotifications() {
     permissionState,
     fcmToken,
     requestPermission,
+    disableNotifications,
+    isEnabled: !!fcmToken,
     isGranted:      permissionState === "granted",
     isDenied:       permissionState === "denied",
     isUnsupported:  permissionState === "unsupported",

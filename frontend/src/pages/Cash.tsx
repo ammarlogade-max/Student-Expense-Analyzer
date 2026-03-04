@@ -274,7 +274,6 @@ const Cash = () => {
 
           {alerts.length === 0 ? (
             <div className="text-center py-6 rounded-xl" style={{ border: "1px dashed rgba(255,255,255,0.08)" }}>
-              <p className="text-xl mb-1">\u2705</p>
               <p className="text-sm" style={{ color: "var(--text-muted)" }}>No active alerts</p>
             </div>
           ) : (
