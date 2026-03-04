@@ -101,20 +101,30 @@ const Analytics = () => {
 
       <div className="card">
         <div className="mb-4 flex flex-wrap gap-3">
-          <input
-            type="date"
-            value={range.startDate}
-            onChange={(e) => setRange({ ...range, startDate: e.target.value })}
-            style={{ flex: "1 1 150px", minWidth: 0, minHeight: 44, fontSize: 16 }}
-            aria-label="Start date"
-          />
-          <input
-            type="date"
-            value={range.endDate}
-            onChange={(e) => setRange({ ...range, endDate: e.target.value })}
-            style={{ flex: "1 1 150px", minWidth: 0, minHeight: 44, fontSize: 16 }}
-            aria-label="End date"
-          />
+          <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+              From date
+            </label>
+            <input
+              type="date"
+              value={range.startDate}
+              onChange={(e) => setRange({ ...range, startDate: e.target.value })}
+              style={{ minHeight: 44, fontSize: 16 }}
+              aria-label="Start date"
+            />
+          </div>
+          <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+              To date
+            </label>
+            <input
+              type="date"
+              value={range.endDate}
+              onChange={(e) => setRange({ ...range, endDate: e.target.value })}
+              style={{ minHeight: 44, fontSize: 16 }}
+              aria-label="End date"
+            />
+          </div>
           {(range.startDate || range.endDate) && (
             <button
               onClick={() => setRange({ startDate: "", endDate: "" })}
