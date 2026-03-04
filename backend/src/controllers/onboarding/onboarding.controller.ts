@@ -100,35 +100,30 @@ export async function completeOnboarding(req: Request, res: Response) {
       }
     });
 
-    if (budgetSplit && monthlyAllowance) {
-      const budgetLimitModel = (prisma as any).budgetLimit;
-      if (budgetLimitModel?.upsert) {
-        const budgetEntries = Object.entries(budgetSplit).map(([category, pct]) => ({
-          userId,
-          category,
-          limitAmount: Math.round((pct / 100) * monthlyAllowance),
-          month: new Date().getMonth() + 1,
-          year: new Date().getFullYear()
-        }));
+    // Keep Budget module in sync with onboarding so Budget page is immediately populated.
+    const monthlyLimit = Number(monthlyAllowance);
+    const categoryBudgets =
+      budgetSplit && monthlyLimit > 0
+        ? Object.fromEntries(
+            Object.entries(budgetSplit).map(([category, pct]) => [
+              category,
+              Math.round((Number(pct) / 100) * monthlyLimit),
+            ])
+          )
+        : {};
 
-        for (const entry of budgetEntries) {
-          await budgetLimitModel
-            .upsert({
-              where: {
-                userId_category_month_year: {
-                  userId: entry.userId,
-                  category: entry.category,
-                  month: entry.month,
-                  year: entry.year
-                }
-              },
-              create: entry,
-              update: { limitAmount: entry.limitAmount }
-            })
-            .catch(() => {});
-        }
-      }
-    }
+    await prisma.budget.upsert({
+      where: { userId },
+      update: {
+        monthlyLimit,
+        categoryBudgets,
+      },
+      create: {
+        userId,
+        monthlyLimit,
+        categoryBudgets,
+      },
+    });
 
     return res.json({ success: true, user: updated });
   } catch (err) {
