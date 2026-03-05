@@ -24,12 +24,14 @@ const app = express();
 app.use(helmet());
 const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean);
 const vercelPreviewRegex = /^https:\/\/student-expense-analyzer.*\.vercel\.app$/;
+const nativeAppOrigins = new Set(["capacitor://localhost", "ionic://localhost", "http://localhost"]);
 app.use(
   cors({
     origin(origin, callback) {
       // Allow server-to-server/curl requests (no Origin header)
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
+      if (nativeAppOrigins.has(origin)) return callback(null, true);
       if (vercelPreviewRegex.test(origin)) return callback(null, true);
       // Testing-safe fallback: allow unknown origins instead of failing preflight.
       // Tighten this after rollout by removing this line.
