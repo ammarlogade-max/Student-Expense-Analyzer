@@ -18,26 +18,39 @@ import { errorMiddleware } from "./middlewares/error.middleware";
 import { requestLogger } from "./middlewares/requestLogger.middleware";
 import { apiLimiter, authLimiter } from "./middlewares/rateLimit.middleware";
 import { env } from "./config/env";
+import { logger } from "./utils/logger";
 
 const app = express();
 
 app.use(helmet());
-const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean);
+const configuredOrigins = env.CORS_ORIGIN
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
 const vercelPreviewRegex = /^https:\/\/student-expense-analyzer.*\.vercel\.app$/;
 const nativeAppOrigins = new Set(["capacitor://localhost", "ionic://localhost", "http://localhost"]);
+const allowedOrigins = new Set([...configuredOrigins, ...nativeAppOrigins]);
+
+function isAllowedOrigin(origin?: string): boolean {
+  if (!origin) return true;
+  if (allowedOrigins.has(origin)) return true;
+  if (vercelPreviewRegex.test(origin)) return true;
+  return false;
+}
+
+logger.info(`CORS configured origins: ${configuredOrigins.join(", ") || "(none)"}`);
+
 app.use(
   cors({
     origin(origin, callback) {
-      // Allow server-to-server/curl requests (no Origin header)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      if (nativeAppOrigins.has(origin)) return callback(null, true);
-      if (vercelPreviewRegex.test(origin)) return callback(null, true);
-      // Testing-safe fallback: allow unknown origins instead of failing preflight.
-      // Tighten this after rollout by removing this line.
-      return callback(null, true);
+      if (isAllowedOrigin(origin)) {
+        return callback(null, true);
+      }
+      logger.info(`CORS blocked origin: ${origin ?? "unknown"}`);
+      return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"],
   })
 );
 app.use(express.json());
