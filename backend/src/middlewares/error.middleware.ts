@@ -15,7 +15,11 @@ export function errorMiddleware(
     });
   }
 
-  logger.error(`Unhandled Error: ${err?.message || "unknown"}`);
+  const message = err?.message || "unknown";
+  const stack = err?.stack ? `\n${err.stack}` : "";
+  logger.error(
+    `Unhandled Error [${req.method} ${req.originalUrl}] ${message}${stack}`
+  );
 
   return res.status(500).json({
     success: false,
