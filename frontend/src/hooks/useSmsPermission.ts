@@ -18,11 +18,39 @@ interface SmsMessage {
   date: number;
 }
 
-const BANK_SENDERS = /^(HDFCBK|SBIINB|ICICIB|KOTAKB|AXISBK|SBICRD|PAYTMB|IDFCBK|YESBK|BOIIND|CANBNK|PNBSMS|UNIONB|INDBNK|VM-HDFCBK|VK-SBIINB|BP-ICICIB|AD-KOTAKB)/i;
-const DEBIT_KEYWORDS = /\b(debited|debit|spent|paid|payment|purchase|withdrawn|transferred|txn|transaction)\b/i;
+const BANK_SENDER_CODES = [
+  "HDFCBK",
+  "SBIINB",
+  "SBICRD",
+  "ICICIB",
+  "KOTAKB",
+  "AXISBK",
+  "IDFCBK",
+  "YESBK",
+  "BOIIND",
+  "CANBNK",
+  "PNBSMS",
+  "UNIONB",
+  "INDBNK",
+  "PAYTMB",
+  "HSBC",
+  "CITIBK",
+];
+
+const BANK_BODY_HINTS =
+  /\b(a\/c|ac|account|acct|upi|neft|imps|debit\s*card|credit\s*card|avl|available|balance|inr|rs\.?)\b/i;
+const DEBIT_KEYWORDS =
+  /\b(debited|debit|spent|paid|payment|purchase|withdrawn|withdrawal|transferred|sent|txn|transaction)\b/i;
+
+function normalizeSender(address: string): string {
+  return (address || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
 
 function isBankDebitSms(address: string, body: string): boolean {
-  return BANK_SENDERS.test(address) && DEBIT_KEYWORDS.test(body);
+  const sender = normalizeSender(address);
+  const hasKnownSender = BANK_SENDER_CODES.some((code) => sender.includes(code));
+  const looksLikeBankBody = BANK_BODY_HINTS.test(body);
+  return DEBIT_KEYWORDS.test(body) && (hasKnownSender || looksLikeBankBody);
 }
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
@@ -155,7 +183,7 @@ export function useSmsPermission() {
       setImportProgress({ done: 0, total: bankMessages.length });
 
       if (bankMessages.length === 0) {
-        push("No bank SMS found in last 90 days", "info");
+        push(`No bank debit SMS found in last 90 days (scanned ${messages.length} messages)`, "info");
         return;
       }
 
