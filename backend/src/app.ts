@@ -28,7 +28,12 @@ const configuredOrigins = env.CORS_ORIGIN
   .map((o) => o.trim())
   .filter(Boolean);
 const vercelPreviewRegex = /^https:\/\/student-expense-analyzer.*\.vercel\.app$/;
-const nativeAppOrigins = new Set(["capacitor://localhost", "ionic://localhost", "http://localhost"]);
+const nativeAppOrigins = new Set([
+  "capacitor://localhost",
+  "ionic://localhost",
+  "http://localhost",
+  "https://localhost",
+]);
 const allowedOrigins = new Set([...configuredOrigins, ...nativeAppOrigins]);
 
 function isAllowedOrigin(origin?: string): boolean {
