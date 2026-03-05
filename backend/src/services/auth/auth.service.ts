@@ -18,7 +18,8 @@ export async function signupUser(data: SignupInput) {
   const { name, email, password } = data;
 
   const existingUser = await prisma.user.findUnique({
-    where: { email }
+    where: { email },
+    select: { id: true }
   });
 
   if (existingUser) {
@@ -46,7 +47,13 @@ export async function loginUser(data: LoginInput) {
   const { email, password } = data;
 
   const user = await prisma.user.findUnique({
-    where: { email }
+    where: { email },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      password: true
+    }
   });
 
   if (!user) {
@@ -95,7 +102,14 @@ export async function loginUser(data: LoginInput) {
 }
 
 export async function refreshTokens(userId: string, refreshToken: string) {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      refreshToken: true
+    }
+  });
   if (!user || !user.refreshToken) {
     throw new Error("Refresh token invalid");
   }
