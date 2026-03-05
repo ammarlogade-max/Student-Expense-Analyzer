@@ -36,6 +36,7 @@ model Expense {
   amount         Float
   category       String
   description    String?
+  source         String   @default("manual") // "manual" | "sms" | "voice"
   createdAt      DateTime @default(now())
   transactedAt   DateTime @default(now())  // actual transaction date (from SMS or manual)
   userId         String
@@ -143,4 +144,3 @@ model NotificationLog {
   @@index([userId])
   @@index([sentAt])
 }
-

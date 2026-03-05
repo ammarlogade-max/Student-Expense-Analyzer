@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import DashboardLayout from "./layouts/DashboardLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import OnboardingGuard from "./components/OnboardingGuard";  // NEW
+import { useCapacitorNotifications } from "./hooks/useCapacitorNotifications";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Expenses = lazy(() => import("./pages/Expenses"));
@@ -17,6 +18,7 @@ const Onboarding = lazy(() => import("./pages/Onboarding")); // NEW
 const Score = lazy(() => import("./pages/Score")); // from step 4
 const NotificationVoice = lazy(() => import("./pages/NotificationVoice"));
 const NotificationText = lazy(() => import("./pages/NotificationText"));
+const SmsAuto = lazy(() => import("./pages/SmsAuto"));
 
 const RouteFallback = () => (
   <div className="min-h-screen flex items-center justify-center p-6" style={{ background: "var(--bg-primary)" }}>
@@ -29,6 +31,8 @@ const RouteFallback = () => (
 );
 
 function App() {
+  useCapacitorNotifications();
+
   return (
     <BrowserRouter>
       <Suspense fallback={<RouteFallback />}>
@@ -67,6 +71,7 @@ function App() {
           <Route path="/budget" element={<BudgetPage />} />
           <Route path="/cash" element={<Cash />} />
           <Route path="/sms-parser" element={<SmsParser />} />
+          <Route path="/sms-auto" element={<SmsAuto />} />
           <Route path="/score" element={<Score />} />
           <Route path="/settings" element={<Settings />} />
         </Route>

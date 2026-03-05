@@ -10,6 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/android": "^8.1.0",
+    "@capacitor/cli": "^7.5.0",
+    "@capacitor/core": "^8.1.0",
+    "@capacitor/local-notifications": "^8.0.1",
+    "@capacitor/push-notifications": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.1",
     "firebase": "^12.10.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

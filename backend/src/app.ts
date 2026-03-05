@@ -11,6 +11,7 @@ import cashRoutes from "./routes/cash/cash.routes";
 import scoreRoutes from "./routes/score/score.routes";
 import onboardingRoutes from "./routes/onboarding/onboarding.routes";
 import notificationRoutes from "./routes/notifications/notification.routes";
+import smsAutoRoutes from "./routes/sms/sms.auto.routes";
 import { startNotificationScheduler } from "./jobs/notification.scheduler";
 
 import { errorMiddleware } from "./middlewares/error.middleware";
@@ -50,6 +51,7 @@ app.use("/api/budget", budgetRoutes);
 app.use("/api/score", scoreRoutes);
 app.use("/api/onboarding", onboardingRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/sms", smsAutoRoutes);
 app.use(errorMiddleware);
 
 export default app;
