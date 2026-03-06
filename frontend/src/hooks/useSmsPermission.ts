@@ -20,12 +20,18 @@ interface SmsMessage {
 
 const BANK_SENDER_CODES = [
   "HDFCBK",
+  "HDFC",
   "SBIINB",
   "SBICRD",
+  "SBI",
   "ICICIB",
+  "ICICI",
   "KOTAKB",
+  "KOTAK",
   "AXISBK",
+  "AXIS",
   "IDFCBK",
+  "IDFC",
   "YESBK",
   "BOIIND",
   "CANBNK",
@@ -33,14 +39,26 @@ const BANK_SENDER_CODES = [
   "UNIONB",
   "INDBNK",
   "PAYTMB",
+  "AUSFBL",
+  "IDBIBK",
+  "BOBSMS",
+  "INDUSB",
+  "RBLBNK",
+  "FEDBK",
+  "DBS",
+  "SCBANK",
   "HSBC",
   "CITIBK",
 ];
 
 const BANK_BODY_HINTS =
-  /\b(a\/c|ac|account|acct|upi|neft|imps|debit\s*card|credit\s*card|avl|available|balance|inr|rs\.?)\b/i;
+  /\b(a\/c|account|acct|upi|neft|imps|rtgs|debit\s*card|credit\s*card|avl|available|balance|merchant|terminal|inr|rs\.?|₹)\b/i;
 const DEBIT_KEYWORDS =
-  /\b(debited|debit|spent|paid|payment|purchase|withdrawn|withdrawal|transferred|sent|txn|transaction)\b/i;
+  /\b(debited|debit|spent|paid|payment|purchase|withdrawn|withdrawal|transferred|sent|txn|transaction|dr\.?|charged|used)\b/i;
+const CREDIT_ONLY_KEYWORDS =
+  /\b(credited|credit|salary|refund|cashback|reversal|reward|interest)\b/i;
+const OTP_KEYWORDS = /\b(otp|one[-\s]?time password|do not share|never share)\b/i;
+const AMOUNT_PATTERN = /(?:₹|rs\.?|inr)\s*[\d,]+(?:\.\d{1,2})?/i;
 
 function normalizeSender(address: string): string {
   return (address || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -48,9 +66,20 @@ function normalizeSender(address: string): string {
 
 function isBankDebitSms(address: string, body: string): boolean {
   const sender = normalizeSender(address);
+  if (!body || OTP_KEYWORDS.test(body)) return false;
+
   const hasKnownSender = BANK_SENDER_CODES.some((code) => sender.includes(code));
+  const hasAmount = AMOUNT_PATTERN.test(body);
+  if (!hasAmount) return false;
+
+  const hasDebitKeyword = DEBIT_KEYWORDS.test(body);
+  const hasCreditOnly = CREDIT_ONLY_KEYWORDS.test(body) && !hasDebitKeyword;
   const looksLikeBankBody = BANK_BODY_HINTS.test(body);
-  return DEBIT_KEYWORDS.test(body) && (hasKnownSender || looksLikeBankBody);
+
+  if (hasCreditOnly) return false;
+  if (!hasDebitKeyword) return false;
+
+  return hasKnownSender || looksLikeBankBody;
 }
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
@@ -136,6 +165,7 @@ export function useSmsPermission() {
   const [hasPermission, setHasPermission] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+  const [debugSummary, setDebugSummary] = useState<string | null>(null);
   const [isCapacitor, setIsCapacitor] = useState(false);
   const listenerRef = useRef<{ remove: () => void } | null>(null);
 
@@ -153,19 +183,18 @@ export function useSmsPermission() {
       const { SmsPlugin } = await import("../plugins/SmsPlugin");
       const pluginAny = SmsPlugin as any;
       if (typeof pluginAny.requestPermissions === "function") {
-        const permissionResult = await pluginAny.requestPermissions();
-        const readGranted = permissionResult?.readSms === "granted" || permissionResult?.receiveSms === "granted";
-        setHasPermission(Boolean(readGranted));
-      } else {
-        setHasPermission(true);
+        await pluginAny.requestPermissions();
       }
 
+      await SmsPlugin.getMessages({ since: Date.now() - 60 * 1000 });
+      setHasPermission(true);
       await registerNotificationActions();
       push("SMS permission enabled", "success");
       return true;
     } catch (err) {
       console.error("[SMS] Permission request failed:", err);
-      push("Failed to enable SMS permission", "error");
+      setHasPermission(false);
+      push("SMS permission denied or unavailable", "error");
       return false;
     }
   }, [push]);
@@ -174,16 +203,26 @@ export function useSmsPermission() {
     if (!isCapacitor || !hasPermission) return;
 
     setIsImporting(true);
+    setDebugSummary(null);
     try {
       const { SmsPlugin } = await import("../plugins/SmsPlugin");
       const since = Date.now() - 90 * 24 * 60 * 60 * 1000;
       const { messages } = await SmsPlugin.getMessages({ since });
+      const uniqueSenders = [...new Set(messages.map((msg: SmsMessage) => normalizeSender(msg.address)).filter(Boolean))];
+      const sampleSenders = uniqueSenders.slice(0, 5).join(", ") || "none";
+      setDebugSummary(
+        `Scanned ${messages.length} SMS in last 90 days (${uniqueSenders.length} unique senders). Sample: ${sampleSenders}`
+      );
 
       const bankMessages: SmsMessage[] = messages.filter((msg: SmsMessage) => isBankDebitSms(msg.address, msg.body));
       setImportProgress({ done: 0, total: bankMessages.length });
 
       if (bankMessages.length === 0) {
-        push(`No bank debit SMS found in last 90 days (scanned ${messages.length} messages)`, "info");
+        console.info("[SMS Import] No matches. Sample senders:", uniqueSenders.slice(0, 12));
+        push(
+          `No bank debit SMS found in last 90 days (scanned ${messages.length} messages, ${uniqueSenders.length} senders)`,
+          "info"
+        );
         return;
       }
 
@@ -247,6 +286,7 @@ export function useSmsPermission() {
     hasPermission,
     isImporting,
     importProgress,
+    debugSummary,
     requestPermissions,
     importInboxHistory,
   };

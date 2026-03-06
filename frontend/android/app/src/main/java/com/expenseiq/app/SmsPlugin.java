@@ -13,6 +13,7 @@ import android.telephony.SmsMessage;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -44,13 +45,18 @@ public class SmsPlugin extends Plugin {
     // ── getMessages ──────────────────────────────────────────────────────────
     @PluginMethod
     public void getMessages(PluginCall call) {
+        if (getPermissionState("readSms") != PermissionState.GRANTED) {
+            call.reject("READ_SMS permission not granted");
+            return;
+        }
+
         long since = call.getLong("since", 0L);
 
         ContentResolver cr = getContext().getContentResolver();
         Cursor cursor = cr.query(
-            Uri.parse("content://sms/inbox"),
-            new String[]{"address", "body", "date"},
-            "date > ?",
+            Uri.parse("content://sms"),
+            new String[]{"address", "body", "date", "type"},
+            "date > ? AND type = 1",
             new String[]{String.valueOf(since)},
             "date DESC"
         );
@@ -60,8 +66,13 @@ public class SmsPlugin extends Plugin {
         if (cursor != null) {
             while (cursor.moveToNext()) {
                 JSObject msg = new JSObject();
-                msg.put("address", cursor.getString(cursor.getColumnIndexOrThrow("address")));
-                msg.put("body",    cursor.getString(cursor.getColumnIndexOrThrow("body")));
+                String address = cursor.getString(cursor.getColumnIndexOrThrow("address"));
+                String body = cursor.getString(cursor.getColumnIndexOrThrow("body"));
+                if (address == null) address = "";
+                if (body == null) body = "";
+
+                msg.put("address", address);
+                msg.put("body", body);
                 msg.put("date",    cursor.getLong(cursor.getColumnIndexOrThrow("date")));
                 messages.put(msg);
             }

@@ -1,19 +1,21 @@
 import { useEffect } from "react";
 import { getCsrfToken, getToken } from "../lib/storage";
 import { useToast } from "../context/ToastContext";
+import { useAuth } from "../context/AuthContext";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
+const NATIVE_FCM_TOKEN_KEY = "expenseiq_native_fcm_token";
 
 function isNativePlatform(): boolean {
   return (window as any).Capacitor?.isNativePlatform?.() === true;
 }
 
-async function registerTokenWithBackend(token: string) {
+async function registerTokenWithBackend(token: string): Promise<boolean> {
   const jwt = getToken();
-  if (!jwt) return;
+  if (!jwt) return false;
   const csrf = getCsrfToken();
 
-  await fetch(`${API_BASE}/notifications/token`, {
+  const response = await fetch(`${API_BASE}/notifications/token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -22,6 +24,8 @@ async function registerTokenWithBackend(token: string) {
     },
     body: JSON.stringify({ token, platform: "android" }),
   });
+
+  return response.ok;
 }
 
 async function confirmSmsCategory(amount: number, merchant: string, category: string) {
@@ -42,6 +46,7 @@ async function confirmSmsCategory(amount: number, merchant: string, category: st
 
 export function useCapacitorNotifications() {
   const { push } = useToast();
+  const { token: authToken } = useAuth();
 
   useEffect(() => {
     if (!isNativePlatform()) return;
@@ -59,7 +64,12 @@ export function useCapacitorNotifications() {
         await PushNotifications.register();
 
         const tokenListener = await PushNotifications.addListener("registration", async ({ value }) => {
-          await registerTokenWithBackend(value);
+          localStorage.setItem(NATIVE_FCM_TOKEN_KEY, value);
+          try {
+            await registerTokenWithBackend(value);
+          } catch (err) {
+            console.error("[Push] Failed to register token:", err);
+          }
         });
         cleanupFns.push(() => {
           tokenListener.remove();
@@ -124,4 +134,16 @@ export function useCapacitorNotifications() {
       cleanupFns = [];
     };
   }, [push]);
+
+  useEffect(() => {
+    if (!isNativePlatform()) return;
+    if (!authToken) return;
+
+    const pendingToken = localStorage.getItem(NATIVE_FCM_TOKEN_KEY);
+    if (!pendingToken) return;
+
+    registerTokenWithBackend(pendingToken).catch((err) => {
+      console.error("[Push] Failed to sync token after login:", err);
+    });
+  }, [authToken]);
 }

@@ -7,6 +7,7 @@ export default function SmsAuto() {
     hasPermission,
     isImporting,
     importProgress,
+    debugSummary,
     requestPermissions,
     importInboxHistory,
   } = useSmsPermission();
@@ -93,6 +94,11 @@ export default function SmsAuto() {
         <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
           Import Last 90 Days
         </p>
+        {debugSummary && (
+          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+            {debugSummary}
+          </p>
+        )}
 
         {isImporting ? (
           <div>
