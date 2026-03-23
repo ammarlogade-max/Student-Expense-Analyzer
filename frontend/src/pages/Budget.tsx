@@ -6,6 +6,7 @@ import type { Budget as BudgetData, BudgetStatus } from "../lib/api";
 import type { Expense } from "../lib/types";
 import { useToast } from "../context/ToastContext";
 import { readCache, writeCache } from "../lib/swrCache";
+import { useFeatureTracking } from "../hooks/useFeatureTracking";
 
 const categories = ["Food", "Shopping", "Transport", "Housing", "Education", "Entertainment", "Health", "Other"];
 
@@ -22,6 +23,7 @@ function statusLabel(pct: number) {
 }
 
 const BudgetPage = () => {
+  useFeatureTracking("budget", "Viewed budget");
   const navigate = useNavigate();
   const { push } = useToast();
 

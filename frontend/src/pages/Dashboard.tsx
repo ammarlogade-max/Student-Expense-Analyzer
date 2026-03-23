@@ -6,6 +6,7 @@ import FinanceScoreCard from "../components/FinanceScoreCard";
 import { useToast } from "../context/ToastContext";
 import { useNavigate } from "react-router-dom";
 import { readCache, writeCache } from "../lib/swrCache";
+import { useFeatureTracking } from "../hooks/useFeatureTracking";
 
 const categories = ["Food", "Shopping", "Transport", "Housing", "Education", "Entertainment", "Health", "Other"];
 const catEmoji: Record<string, string> = {
@@ -51,6 +52,7 @@ function StatCard({ title, value, sub, icon, gradient }: { title: string; value:
 }
 
 const Dashboard = () => {
+  useFeatureTracking("dashboard", "Viewed dashboard");
   const { push } = useToast();
   const navigate = useNavigate();
 

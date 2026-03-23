@@ -436,3 +436,15 @@ export async function handleNotificationAction(action: "voice_entry" | "text_ent
     { method: "POST", auth: true, body: JSON.stringify({ action, text }) }
   );
 }
+
+export async function trackFeatureUsage(
+  feature: string,
+  description?: string,
+  metadata?: Record<string, string>
+) {
+  return request<{ success: boolean }>("/activity/feature", {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify({ feature, description, metadata })
+  });
+}

@@ -1,18 +1,19 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
+import { verify } from "jsonwebtoken";
 import {
   loginUser,
   refreshTokens,
   revokeRefreshToken,
   signupUser
 } from "../../services/auth/auth.service";
-import { verify } from "jsonwebtoken";
 import { env } from "../../config/env";
 import { clearCsrfToken, getOrIssueCsrfToken, issueCsrfToken } from "../../middlewares/csrf.middleware";
+import type { UserRequest } from "../../types/auth";
+import { recordUserActivity } from "../../services/activity/activity.service";
 
 export async function signup(req: Request, res: Response) {
   try {
     const { name, email, password } = req.body;
-
     const user = await signupUser({ name, email, password });
 
     return res.status(201).json({
@@ -26,11 +27,20 @@ export async function signup(req: Request, res: Response) {
   }
 }
 
-export async function login(req: Request, res: Response) {
+export async function login(req: UserRequest, res: Response) {
   try {
     const { email, password } = req.body;
-
     const result = await loginUser({ email, password });
+
+    await recordUserActivity({
+      userId: result.user.id,
+      action: "USER_LOGIN",
+      description: "User signed in",
+      metadata: {
+        source: "web-app"
+      },
+      req
+    });
 
     return res.status(200).json({
       message: "Login successful",
@@ -46,7 +56,7 @@ export async function login(req: Request, res: Response) {
   }
 }
 
-export async function refresh(req: Request, res: Response) {
+export async function refresh(req: UserRequest, res: Response) {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) {
@@ -71,11 +81,11 @@ export async function refresh(req: Request, res: Response) {
   }
 }
 
-export async function logout(req: Request, res: Response) {
+export async function logout(req: UserRequest, res: Response) {
   try {
-    const user = (req as any).user;
-    await revokeRefreshToken(user.userId);
-    clearCsrfToken(user.userId);
+    const user = req.user;
+    await revokeRefreshToken(user!.userId);
+    clearCsrfToken(user!.userId);
     return res.status(200).json({ message: "Logged out" });
   } catch (error: any) {
     return res.status(400).json({

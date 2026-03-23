@@ -5,6 +5,7 @@ import Modal from "../components/Modal";
 import { useToast } from "../context/ToastContext";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { readCache, writeCache } from "../lib/swrCache";
+import { useFeatureTracking } from "../hooks/useFeatureTracking";
 
 const categories = ["Food", "Shopping", "Transport", "Housing", "Education", "Entertainment", "Health", "Other"];
 const catEmoji: Record<string, string> = {
@@ -29,6 +30,7 @@ const catColors: Record<string, string> = {
 };
 
 const Expenses = () => {
+  useFeatureTracking("expenses", "Viewed expenses");
   const { push } = useToast();
   const { addExpense: addExpenseOffline } = useOfflineQueue();
 

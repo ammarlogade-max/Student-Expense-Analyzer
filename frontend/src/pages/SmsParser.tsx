@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { addExpense, ingestSms, parseSms } from "../lib/api";
 import { useToast } from "../context/ToastContext";
+import { useFeatureTracking } from "../hooks/useFeatureTracking";
 
 const categories = ["Food","Shopping","Transport","Housing","Education","Entertainment","Health","Other"];
 const catColors: Record<string,string> = { Food:"#f59e0b",Shopping:"#ec4899",Transport:"#14b8a6",Housing:"#f97316",Education:"#6366f1",Entertainment:"#a78bfa",Health:"#10b981",Other:"#94a3b8" };
@@ -18,6 +19,7 @@ const steps = [
 ];
 
 const SmsParser = () => {
+  useFeatureTracking("sms-parser", "Viewed SMS parser");
   const { push } = useToast();
   const [smsText, setSmsText] = useState("");
   const [result, setResult] = useState<{ amount:string|null; date:string|null; merchant:string; category:string; type?:string }|null>(null);

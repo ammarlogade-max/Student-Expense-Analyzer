@@ -6,6 +6,7 @@ import { useToast } from "../context/ToastContext";
 import Modal from "../components/Modal";
 import { getBudget, updateBudget } from "../lib/api";
 import NotificationDebug from "../components/NotificationDebug";
+import { useFeatureTracking } from "../hooks/useFeatureTracking";
 
 const categories = ["Food", "Shopping", "Transport", "Housing", "Education", "Entertainment", "Health", "Other"];
 
@@ -18,6 +19,7 @@ function ChevronRight() {
 }
 
 const Settings = () => {
+  useFeatureTracking("settings", "Viewed settings");
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { push } = useToast();

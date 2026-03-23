@@ -1,9 +1,10 @@
-import { Request, Response } from "express";
+import type { Response } from "express";
 import prisma from "../../config/prisma";
+import type { UserRequest } from "../../types/auth";
 
-export async function getMe(req: Request, res: Response) {
+export async function getMe(req: UserRequest, res: Response) {
   try {
-    const user = (req as any).user;
+    const user = req.user;
 
     if (!user) {
       return res.status(401).json({
@@ -17,7 +18,10 @@ export async function getMe(req: Request, res: Response) {
         id: true,
         name: true,
         email: true,
-        createdAt: true
+        createdAt: true,
+        lastActive: true,
+        totalActions: true,
+        deviceType: true
       }
     });
 

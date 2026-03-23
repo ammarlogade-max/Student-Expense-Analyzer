@@ -12,8 +12,9 @@ import scoreRoutes from "./routes/score/score.routes";
 import onboardingRoutes from "./routes/onboarding/onboarding.routes";
 import notificationRoutes from "./routes/notifications/notification.routes";
 import smsAutoRoutes from "./routes/sms/sms.auto.routes";
+import adminRoutes from "./routes/admin/admin.routes";
+import activityRoutes from "./routes/activity/activity.routes";
 import { startNotificationScheduler } from "./jobs/notification.scheduler";
-
 import { errorMiddleware } from "./middlewares/error.middleware";
 import { requestLogger } from "./middlewares/requestLogger.middleware";
 import { apiLimiter, authLimiter } from "./middlewares/rateLimit.middleware";
@@ -32,7 +33,7 @@ const nativeAppOrigins = new Set([
   "capacitor://localhost",
   "ionic://localhost",
   "http://localhost",
-  "https://localhost",
+  "https://localhost"
 ]);
 const allowedOrigins = new Set([...configuredOrigins, ...nativeAppOrigins]);
 
@@ -55,15 +56,17 @@ app.use(
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
-    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"],
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"]
   })
 );
 app.use(express.json());
 app.use(requestLogger);
 app.use(apiLimiter);
 startNotificationScheduler();
+
 app.use("/api", healthRoutes);
 app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/admin", authLimiter, adminRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/ml", mlRoutes);
 app.use("/api/cash", cashRoutes);
@@ -72,6 +75,8 @@ app.use("/api/score", scoreRoutes);
 app.use("/api/onboarding", onboardingRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/sms", smsAutoRoutes);
+app.use("/api/activity", activityRoutes);
+
 app.use(errorMiddleware);
 
 export default app;

@@ -5,6 +5,7 @@ import "./index.css";
 import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 import Toasts from "./components/Toasts";
+import { AdminAuthProvider } from "./context/AdminAuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { registerServiceWorker } from "./registerSW";
 import { restoreFromPreferences } from "./lib/storage";
@@ -20,12 +21,14 @@ async function bootstrap() {
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
       <ErrorBoundary>
-        <AuthProvider>
-          <ToastProvider>
-            <App />
-            <Toasts />
-          </ToastProvider>
-        </AuthProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <AdminAuthProvider>
+              <App />
+              <Toasts />
+            </AdminAuthProvider>
+          </AuthProvider>
+        </ToastProvider>
       </ErrorBoundary>
     </React.StrictMode>
   );

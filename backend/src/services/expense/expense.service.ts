@@ -1,14 +1,19 @@
 import prisma from "../../config/prisma";
+import { recordUserActivity } from "../activity/activity.service";
+import type { Request } from "express";
 
 interface CreateExpenseInput {
   userId: string;
   amount: number;
   category: string;
+  paymentMode?: "CASH" | "DIGITAL";
   description?: string;
+  req?: Request;
 }
 
 interface ExpenseFilters {
   category?: string;
+  paymentMode?: "CASH" | "DIGITAL";
   startDate?: string;
   endDate?: string;
   query?: string;
@@ -17,16 +22,32 @@ interface ExpenseFilters {
 }
 
 export async function createExpense(data: CreateExpenseInput) {
-  const { userId, amount, category, description } = data;
+  const { userId, amount, category, paymentMode, description, req } = data;
 
-  return prisma.expense.create({
+  const expense = await prisma.expense.create({
     data: {
       userId,
       amount,
       category,
+      paymentMode: paymentMode ?? "DIGITAL",
       description
     }
   });
+
+  await recordUserActivity({
+    userId,
+    action: "EXPENSE_CREATED",
+    feature: "expenses",
+    description: `Created expense in ${category}`,
+    metadata: {
+      amount,
+      category,
+      paymentMode: paymentMode ?? "DIGITAL"
+    },
+    req
+  });
+
+  return expense;
 }
 
 export async function getUserExpenses(
@@ -37,6 +58,9 @@ export async function getUserExpenses(
 
   if (filters.category) {
     where.category = filters.category;
+  }
+  if (filters.paymentMode) {
+    where.paymentMode = filters.paymentMode;
   }
 
   if (filters.startDate || filters.endDate) {
