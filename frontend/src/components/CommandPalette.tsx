@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 type Props = {
@@ -19,10 +19,6 @@ const routes = [
 const CommandPalette = ({ open, onClose }: Props) => {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    if (!open) setQuery("");
-  }, [open]);
 
   const results = useMemo(() => {
     const term = query.trim().toLowerCase();
