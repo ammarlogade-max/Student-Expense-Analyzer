@@ -7,10 +7,19 @@ import type {
   AdminUser,
   AdminUsersResponse
 } from "./types";
+import {
+  mockAdminActivityResponse,
+  mockAdminMlResponse,
+  mockAdminOverview,
+  mockAdminSystemResponse,
+  mockAdminUsersResponse
+} from "./adminMockData";
 import { getAdminToken } from "./storage";
 
 const API_BASE =
   import.meta.env.VITE_API_URL ?? "http://localhost:5001/api";
+const USE_ADMIN_MOCK_DATA =
+  import.meta.env.VITE_ADMIN_USE_MOCK_DATA !== "false";
 
 const adminClient = axios.create({
   baseURL: API_BASE
@@ -31,6 +40,51 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
+function getPagedUsers(page = 1, limit = 20): AdminUsersResponse {
+  const start = (page - 1) * limit;
+  const users = mockAdminUsersResponse.users.slice(start, start + limit);
+
+  return {
+    ...mockAdminUsersResponse,
+    users,
+    meta: {
+      total: mockAdminUsersResponse.meta.total,
+      page,
+      limit
+    }
+  };
+}
+
+function getPagedActivity(page = 1, limit = 25): AdminActivityResponse {
+  const start = (page - 1) * limit;
+  const logs = mockAdminActivityResponse.logs.slice(start, start + limit);
+
+  return {
+    ...mockAdminActivityResponse,
+    logs,
+    meta: {
+      total: mockAdminActivityResponse.meta.total,
+      page,
+      limit
+    }
+  };
+}
+
+function getPagedMl(page = 1, limit = 25): AdminMlResponse {
+  const start = (page - 1) * limit;
+  const logs = mockAdminMlResponse.logs.slice(start, start + limit);
+
+  return {
+    ...mockAdminMlResponse,
+    logs,
+    meta: {
+      total: mockAdminMlResponse.meta.total,
+      page,
+      limit
+    }
+  };
+}
+
 export async function adminLogin(email: string, password: string) {
   try {
     const { data } = await adminClient.post<{
@@ -45,6 +99,10 @@ export async function adminLogin(email: string, password: string) {
 }
 
 export async function getAdminOverview() {
+  if (USE_ADMIN_MOCK_DATA) {
+    return mockAdminOverview;
+  }
+
   try {
     const { data } = await adminClient.get<{
       success: boolean;
@@ -57,6 +115,10 @@ export async function getAdminOverview() {
 }
 
 export async function getAdminUsers(page = 1, limit = 20) {
+  if (USE_ADMIN_MOCK_DATA) {
+    return getPagedUsers(page, limit);
+  }
+
   try {
     const { data } = await adminClient.get<AdminUsersResponse>("/admin/users", {
       params: { page, limit }
@@ -68,6 +130,10 @@ export async function getAdminUsers(page = 1, limit = 20) {
 }
 
 export async function getAdminActivity(page = 1, limit = 25) {
+  if (USE_ADMIN_MOCK_DATA) {
+    return getPagedActivity(page, limit);
+  }
+
   try {
     const { data } = await adminClient.get<AdminActivityResponse>("/admin/activity", {
       params: { page, limit }
@@ -79,6 +145,10 @@ export async function getAdminActivity(page = 1, limit = 25) {
 }
 
 export async function getAdminMl(page = 1, limit = 25) {
+  if (USE_ADMIN_MOCK_DATA) {
+    return getPagedMl(page, limit);
+  }
+
   try {
     const { data } = await adminClient.get<AdminMlResponse>("/admin/ml", {
       params: { page, limit }
@@ -90,6 +160,10 @@ export async function getAdminMl(page = 1, limit = 25) {
 }
 
 export async function getAdminSystem() {
+  if (USE_ADMIN_MOCK_DATA) {
+    return mockAdminSystemResponse;
+  }
+
   try {
     const { data } = await adminClient.get<AdminSystemResponse>("/admin/system");
     return data;
