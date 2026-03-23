@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import { getExpenses, getMonthlySummary } from "../lib/api";
 import type { Expense } from "../lib/types";
+import { useFeatureTracking } from "../hooks/useFeatureTracking";
 
 const STORAGE_KEY = "sea_budget_limit";
 const CATEGORY_KEY = "sea_category_budgets";
@@ -24,6 +25,7 @@ const categories = [
 ];
 
 const Budget = () => {
+  useFeatureTracking("budget", "Viewed budget");
   const [limit, setLimit] = useState<number>(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? Number(raw) : 500;

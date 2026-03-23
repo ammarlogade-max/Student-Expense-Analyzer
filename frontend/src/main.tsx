@@ -5,6 +5,7 @@ import "./index.css";
 import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 import Toasts from "./components/Toasts";
+import { AdminAuthProvider } from "./context/AdminAuthContext";
 
 const storedTheme = localStorage.getItem("sea_theme");
 if (storedTheme === "dark") {
@@ -13,11 +14,13 @@ if (storedTheme === "dark") {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AuthProvider>
-      <ToastProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <AdminAuthProvider>
         <App />
         <Toasts />
-      </ToastProvider>
-    </AuthProvider>
+        </AdminAuthProvider>
+      </AuthProvider>
+    </ToastProvider>
   </React.StrictMode>
 );

@@ -8,21 +8,92 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  password  String
-  name      String
-  createdAt DateTime  @default(now())
+  id           String        @id @default(uuid())
+  email        String        @unique
+  password     String
+  name         String
+  createdAt    DateTime      @default(now())
+  lastActive   DateTime?
+  totalActions Int           @default(0)
+  deviceType   String?
   refreshToken String?
-  expenses  Expense[]
+  expenses     Expense[]
+  activityLogs ActivityLog[]
+  mlLogs       MLLog[]
+}
+
+model Admin {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  password     String
+  name         String
+  createdAt    DateTime      @default(now())
+  lastLoginAt  DateTime?
+  activityLogs ActivityLog[]
 }
 
 model Expense {
-  id          String   @id @default(uuid())
+  id          String      @id @default(uuid())
   amount      Float
   category    String
+  paymentMode PaymentMode @default(DIGITAL)
   description String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime    @default(now())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+}
+
+model ActivityLog {
+  id          String         @id @default(uuid())
+  actorType   ActorType
+  action      ActivityAction
+  feature     String?
+  description String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  deviceType  String?
+  createdAt   DateTime       @default(now())
+  userId      String?
+  adminId     String?
+  user        User?          @relation(fields: [userId], references: [id])
+  admin       Admin?         @relation(fields: [adminId], references: [id])
+}
+
+model MLLog {
+  id             String        @id @default(uuid())
+  requestType    MLRequestType
+  merchant       String?
+  category       String?
+  success        Boolean
+  responseTimeMs Int
+  errorMessage   String?
+  rawResponse    Json?
+  createdAt      DateTime      @default(now())
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id])
+}
+
+enum PaymentMode {
+  CASH
+  DIGITAL
+}
+
+enum ActorType {
+  USER
+  ADMIN
+  SYSTEM
+}
+
+enum ActivityAction {
+  USER_LOGIN
+  EXPENSE_CREATED
+  SMS_IMPORT
+  FEATURE_USAGE
+  ADMIN_LOGIN
+}
+
+enum MLRequestType {
+  PREDICT_CATEGORY
+  PARSE_SMS
 }

@@ -2,7 +2,7 @@ import type { Expense, MonthlySummary, User } from "./types";
 import { getToken } from "./storage";
 
 const API_BASE =
-  import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
+  import.meta.env.VITE_API_URL ?? "http://localhost:5001/api";
 
 type RequestOptions = RequestInit & { auth?: boolean };
 
@@ -88,6 +88,7 @@ export async function getMe() {
 
 export async function getExpenses(params?: {
   category?: string;
+  paymentMode?: "CASH" | "DIGITAL";
   startDate?: string;
   endDate?: string;
   query?: string;
@@ -96,6 +97,7 @@ export async function getExpenses(params?: {
 }) {
   const search = new URLSearchParams();
   if (params?.category) search.set("category", params.category);
+  if (params?.paymentMode) search.set("paymentMode", params.paymentMode);
   if (params?.startDate) search.set("startDate", params.startDate);
   if (params?.endDate) search.set("endDate", params.endDate);
   if (params?.query) search.set("query", params.query);
@@ -115,7 +117,7 @@ export async function getExpenses(params?: {
 }
 
 export async function addExpense(
-  payload: Pick<Expense, "amount" | "category" | "description">
+  payload: Pick<Expense, "amount" | "category" | "paymentMode" | "description">
 ) {
   return request<{ expense: Expense }>("/expenses", {
     method: "POST",
@@ -126,7 +128,9 @@ export async function addExpense(
 
 export async function updateExpense(
   id: string,
-  payload: Partial<Pick<Expense, "amount" | "category" | "description">>
+  payload: Partial<
+    Pick<Expense, "amount" | "category" | "paymentMode" | "description">
+  >
 ) {
   return request<{ expense: Expense }>(`/expenses/${id}`, {
     method: "PATCH",
@@ -175,5 +179,17 @@ export async function parseSms(smsText: string) {
     method: "POST",
     auth: true,
     body: JSON.stringify({ smsText })
+  });
+}
+
+export async function trackFeatureUsage(
+  feature: string,
+  description?: string,
+  metadata?: Record<string, string>
+) {
+  return request<{ success: boolean }>("/activity/feature", {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify({ feature, description, metadata })
   });
 }

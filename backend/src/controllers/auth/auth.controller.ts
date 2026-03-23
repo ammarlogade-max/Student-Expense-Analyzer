@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import type { Response } from "express";
 import {
   loginUser,
   refreshTokens,
@@ -7,8 +7,10 @@ import {
 } from "../../services/auth/auth.service";
 import { verify } from "jsonwebtoken";
 import { env } from "../../config/env";
+import type { UserRequest } from "../../types/auth";
+import { recordUserActivity } from "../../services/activity/activity.service";
 
-export async function signup(req: Request, res: Response) {
+export async function signup(req: UserRequest, res: Response) {
   try {
     const { name, email, password } = req.body;
 
@@ -25,11 +27,21 @@ export async function signup(req: Request, res: Response) {
   }
 }
 
-export async function login(req: Request, res: Response) {
+export async function login(req: UserRequest, res: Response) {
   try {
     const { email, password } = req.body;
 
     const result = await loginUser({ email, password });
+
+    await recordUserActivity({
+      userId: result.user.id,
+      action: "USER_LOGIN",
+      description: "User signed in",
+      metadata: {
+        source: "web-app"
+      },
+      req
+    });
 
     return res.status(200).json({
       message: "Login successful",
@@ -44,7 +56,7 @@ export async function login(req: Request, res: Response) {
   }
 }
 
-export async function refresh(req: Request, res: Response) {
+export async function refresh(req: UserRequest, res: Response) {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) {
@@ -68,7 +80,7 @@ export async function refresh(req: Request, res: Response) {
   }
 }
 
-export async function logout(req: Request, res: Response) {
+export async function logout(req: UserRequest, res: Response) {
   try {
     const user = (req as any).user;
     await revokeRefreshToken(user.userId);

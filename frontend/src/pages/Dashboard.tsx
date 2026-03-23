@@ -3,8 +3,10 @@ import { addExpense, getExpenses, getMonthlySummary } from "../lib/api";
 import type { Expense } from "../lib/types";
 import Modal from "../components/Modal";
 import { useToast } from "../context/ToastContext";
+import { useFeatureTracking } from "../hooks/useFeatureTracking";
 
 const Dashboard = () => {
+  useFeatureTracking("dashboard", "Viewed dashboard");
   const { push } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,6 +18,7 @@ const Dashboard = () => {
   const [quickAdd, setQuickAdd] = useState({
     amount: "",
     category: "Food",
+    paymentMode: "DIGITAL" as "CASH" | "DIGITAL",
     description: ""
   });
 
@@ -222,9 +225,15 @@ const Dashboard = () => {
               await addExpense({
                 amount: Number(quickAdd.amount),
                 category: quickAdd.category,
+                paymentMode: quickAdd.paymentMode,
                 description: quickAdd.description || undefined
               });
-              setQuickAdd({ amount: "", category: "Food", description: "" });
+              setQuickAdd({
+                amount: "",
+                category: "Food",
+                paymentMode: "DIGITAL",
+                description: ""
+              });
               setQuickAddOpen(false);
               push("Expense added", "success");
             } catch {
@@ -249,6 +258,19 @@ const Dashboard = () => {
             placeholder="Category"
             className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
           />
+          <select
+            value={quickAdd.paymentMode}
+            onChange={(e) =>
+              setQuickAdd({
+                ...quickAdd,
+                paymentMode: e.target.value as "CASH" | "DIGITAL"
+              })
+            }
+            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+          >
+            <option value="DIGITAL">Digital / Card / UPI</option>
+            <option value="CASH">Cash</option>
+          </select>
           <textarea
             value={quickAdd.description}
             onChange={(e) =>

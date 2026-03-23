@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useFeatureTracking } from "../hooks/useFeatureTracking";
 
 const Settings = () => {
+  useFeatureTracking("settings", "Viewed settings");
   const { user, logout } = useAuth();
   const [notifications, setNotifications] = useState(true);
   const [weeklySummary, setWeeklySummary] = useState(true);

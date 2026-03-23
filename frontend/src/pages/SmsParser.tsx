@@ -1,8 +1,13 @@
 import { useState } from "react";
 import { addExpense, parseSms } from "../lib/api";
 import { useToast } from "../context/ToastContext";
+import { useFeatureTracking } from "../hooks/useFeatureTracking";
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 const SmsParser = () => {
+  useFeatureTracking("sms-parser", "Viewed SMS parser");
   const [smsText, setSmsText] = useState("");
   const categories = [
     "Food",
@@ -38,8 +43,8 @@ const SmsParser = () => {
           ? "Other"
           : parsedCategory;
       setSelectedCategory(fallback);
-    } catch (err: any) {
-      setError(err.message || "Failed to parse SMS");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Failed to parse SMS"));
     } finally {
       setLoading(false);
     }
@@ -61,11 +66,12 @@ const SmsParser = () => {
           !result.merchant
             ? selectedCategory
             : result.category,
+        paymentMode: "DIGITAL",
         description: result.merchant || "SMS expense"
       });
       push("Saved to expenses", "success");
-    } catch (err: any) {
-      push(err.message || "Failed to save expense", "error");
+    } catch (error: unknown) {
+      push(getErrorMessage(error, "Failed to save expense"), "error");
     } finally {
       setSaving(false);
     }

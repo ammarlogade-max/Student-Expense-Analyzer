@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { AppError } from "../utils/AppError";
 import { logger } from "../utils/logger";
+import { recordUnhandledError } from "../services/system/system.service";
 
 export function errorMiddleware(
   err: any,
@@ -16,6 +17,7 @@ export function errorMiddleware(
   }
 
   logger.error(`Unhandled Error: ${err?.message || "unknown"}`);
+  recordUnhandledError();
 
   return res.status(500).json({
     success: false,

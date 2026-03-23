@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import type { Response } from "express";
 import {
   createExpense,
   deleteExpense,
@@ -7,15 +7,24 @@ import {
   updateExpense
 } from "../../services/expense/expense.service";
 import { AppError } from "../../utils/AppError";
+import type { UserRequest } from "../../types/auth";
 
-export async function addExpense(req: Request, res: Response) {
+function requireUser(req: UserRequest) {
+  if (!req.user) {
+    throw new AppError("Unauthorized", 401);
+  }
+  return req.user;
+}
+
+export async function addExpense(req: UserRequest, res: Response) {
   try {
-    const user = (req as any).user;
+    const user = requireUser(req);
     const data = req.body;
 
     const expense = await createExpense({
       userId: user.userId,
-      ...data
+      ...data,
+      req
     });
 
     return res.status(201).json({
@@ -27,13 +36,15 @@ export async function addExpense(req: Request, res: Response) {
   }
 }
 
-export async function getExpenses(req: Request, res: Response) {
+export async function getExpenses(req: UserRequest, res: Response) {
   try {
-    const user = (req as any).user;
-    const { category, startDate, endDate, query, page, limit } = req.query;
+    const user = requireUser(req);
+    const { category, paymentMode, startDate, endDate, query, page, limit } =
+      req.query;
 
     const result = await getUserExpenses(user.userId, {
       category: category as string,
+      paymentMode: paymentMode as "CASH" | "DIGITAL" | undefined,
       startDate: startDate as string,
       endDate: endDate as string,
       query: query as string,
@@ -56,11 +67,11 @@ export async function getExpenses(req: Request, res: Response) {
 }
 
 export async function getMonthlyExpenseSummary(
-  req: Request,
+  req: UserRequest,
   res: Response
 ) {
   try {
-    const user = (req as any).user;
+    const user = requireUser(req);
 
     const summary = await getMonthlySummary(user.userId);
 
@@ -73,9 +84,9 @@ export async function getMonthlyExpenseSummary(
   }
 }
 
-export async function updateExpenseItem(req: Request, res: Response) {
+export async function updateExpenseItem(req: UserRequest, res: Response) {
   try {
-    const user = (req as any).user;
+    const user = requireUser(req);
     const { id } = req.params;
     const data = req.body;
 
@@ -90,9 +101,9 @@ export async function updateExpenseItem(req: Request, res: Response) {
   }
 }
 
-export async function deleteExpenseItem(req: Request, res: Response) {
+export async function deleteExpenseItem(req: UserRequest, res: Response) {
   try {
-    const user = (req as any).user;
+    const user = requireUser(req);
     const { id } = req.params;
     const deleted = await deleteExpense(user.userId, id);
     if (!deleted) {

@@ -13,6 +13,7 @@ import {
 import { getExpenses, getMonthlySummary } from "../lib/api";
 import type { Expense } from "../lib/types";
 import { useToast } from "../context/ToastContext";
+import { useFeatureTracking } from "../hooks/useFeatureTracking";
 
 const palette = [
   "#10b981",
@@ -24,6 +25,7 @@ const palette = [
 ];
 
 const Analytics = () => {
+  useFeatureTracking("analytics", "Viewed analytics");
   const { push } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [summaryByCategory, setSummaryByCategory] = useState<

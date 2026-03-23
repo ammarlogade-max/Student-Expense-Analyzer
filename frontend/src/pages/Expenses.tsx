@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { addExpense, deleteExpense, getExpenses, updateExpense } from "../lib/api";
 import type { Expense } from "../lib/types";
 import Modal from "../components/Modal";
 import { useToast } from "../context/ToastContext";
+import { useFeatureTracking } from "../hooks/useFeatureTracking";
 
 const categories = [
   "Food",
@@ -14,7 +15,16 @@ const categories = [
   "Other"
 ];
 
+const paymentModes = [
+  { value: "DIGITAL", label: "Digital / Card / UPI" },
+  { value: "CASH", label: "Cash" }
+] as const;
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 const Expenses = () => {
+  useFeatureTracking("expenses", "Viewed expenses");
   const { push } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [meta, setMeta] = useState({
@@ -26,6 +36,7 @@ const Expenses = () => {
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     category: "",
+    paymentMode: "" as "" | "CASH" | "DIGITAL",
     startDate: "",
     endDate: "",
     query: ""
@@ -35,6 +46,7 @@ const Expenses = () => {
   const [form, setForm] = useState({
     amount: "",
     category: categories[0],
+    paymentMode: "DIGITAL" as "CASH" | "DIGITAL",
     description: ""
   });
   const [saving, setSaving] = useState(false);
@@ -43,11 +55,12 @@ const Expenses = () => {
   const [editSaving, setEditSaving] = useState(false);
   const [deleteItem, setDeleteItem] = useState<Expense | null>(null);
 
-  const loadExpenses = async (page = 1, limit = meta.limit) => {
+  const loadExpenses = useCallback(async (page: number, limit: number) => {
     setLoading(true);
     try {
       const res = await getExpenses({
         ...filters,
+        paymentMode: filters.paymentMode || undefined,
         page,
         limit
       });
@@ -55,28 +68,28 @@ const Expenses = () => {
       if (res.meta) {
         setMeta(res.meta);
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to load expenses");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Failed to load expenses"));
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   useEffect(() => {
-    loadExpenses(1, meta.limit);
-  }, [filters, meta.limit]);
+    void loadExpenses(1, meta.limit);
+  }, [loadExpenses, meta.limit]);
 
   useEffect(() => {
     const raw = localStorage.getItem(draftKey);
     if (raw) {
       try {
         const saved = JSON.parse(raw);
-        setForm({ ...form, ...saved });
+        setForm((previous) => ({ ...previous, ...saved }));
       } catch {
         return;
       }
     }
-  }, []);
+  }, [draftKey]);
 
   useEffect(() => {
     localStorage.setItem(draftKey, JSON.stringify(form));
@@ -94,14 +107,20 @@ const Expenses = () => {
       await addExpense({
         amount: Number(form.amount),
         category: form.category,
+        paymentMode: form.paymentMode,
         description: form.description || undefined
       });
-      setForm({ amount: "", category: categories[0], description: "" });
+      setForm({
+        amount: "",
+        category: categories[0],
+        paymentMode: "DIGITAL",
+        description: ""
+      });
       localStorage.removeItem(draftKey);
       await loadExpenses(1, meta.limit);
       push("Expense added", "success");
-    } catch (err: any) {
-      setError(err.message || "Failed to add expense");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Failed to add expense"));
     } finally {
       setSaving(false);
     }
@@ -147,13 +166,14 @@ const Expenses = () => {
       await updateExpense(editItem.id, {
         amount: editItem.amount,
         category: editItem.category,
+        paymentMode: editItem.paymentMode,
         description: editItem.description || undefined
       });
       push("Expense updated", "success");
       setEditItem(null);
       await loadExpenses(meta.page, meta.limit);
-    } catch (err: any) {
-      push(err.message || "Failed to update expense", "error");
+    } catch (error: unknown) {
+      push(getErrorMessage(error, "Failed to update expense"), "error");
     } finally {
       setEditSaving(false);
     }
@@ -166,8 +186,8 @@ const Expenses = () => {
       push("Expense deleted", "success");
       setDeleteItem(null);
       await loadExpenses(meta.page, meta.limit);
-    } catch (err: any) {
-      push(err.message || "Failed to delete expense", "error");
+    } catch (error: unknown) {
+      push(getErrorMessage(error, "Failed to delete expense"), "error");
     }
   };
 
@@ -218,6 +238,28 @@ const Expenses = () => {
           </div>
 
           <div>
+            <label className="text-sm font-medium">
+              Spent Via <span className="text-rose-500">*</span>
+            </label>
+            <select
+              value={form.paymentMode}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  paymentMode: e.target.value as "CASH" | "DIGITAL"
+                })
+              }
+              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:border-emerald-400 focus:outline-none"
+            >
+              {paymentModes.map((mode) => (
+                <option key={mode.value} value={mode.value}>
+                  {mode.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="text-sm font-medium">Description</label>
             <textarea
               value={form.description}
@@ -252,7 +294,7 @@ const Expenses = () => {
             Latest first
           </span>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <input
             placeholder="Search"
             value={filters.query}
@@ -272,6 +314,23 @@ const Expenses = () => {
             {categories.map((category) => (
               <option key={category} value={category}>
                 {category}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filters.paymentMode}
+            onChange={(e) =>
+              setFilters({
+                ...filters,
+                paymentMode: e.target.value as "" | "CASH" | "DIGITAL"
+              })
+            }
+            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:border-emerald-400 focus:outline-none"
+          >
+            <option value="">All Payment Modes</option>
+            {paymentModes.map((mode) => (
+              <option key={mode.value} value={mode.value}>
+                {mode.label}
               </option>
             ))}
           </select>
@@ -308,7 +367,13 @@ const Expenses = () => {
           <button
             className="rounded-full border border-slate-200 px-3 py-1"
             onClick={() =>
-              setFilters({ category: "", startDate: "", endDate: "", query: "" })
+              setFilters({
+                category: "",
+                paymentMode: "",
+                startDate: "",
+                endDate: "",
+                query: ""
+              })
             }
           >
             Clear
@@ -356,9 +421,14 @@ const Expenses = () => {
                 className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 md:flex-row md:items-center md:justify-between"
               >
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">
-                    {expense.category}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-800">
+                      {expense.category}
+                    </p>
+                    <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                      {expense.paymentMode}
+                    </span>
+                  </div>
                   <p className="text-xs text-slate-500">
                     {expense.description || "No description"}
                   </p>
@@ -451,6 +521,22 @@ const Expenses = () => {
               {categories.map((category) => (
                 <option key={category} value={category}>
                   {category}
+                </option>
+              ))}
+            </select>
+            <select
+              value={editItem.paymentMode}
+              onChange={(e) =>
+                setEditItem({
+                  ...editItem,
+                  paymentMode: e.target.value as "CASH" | "DIGITAL"
+                })
+              }
+              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+            >
+              {paymentModes.map((mode) => (
+                <option key={mode.value} value={mode.value}>
+                  {mode.label}
                 </option>
               ))}
             </select>
