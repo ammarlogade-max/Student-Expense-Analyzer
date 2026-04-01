@@ -15,12 +15,12 @@ const items = [
 ];
 
 const BottomNav = () => (
-  <nav className="fixed bottom-0 left-0 right-0 z-30 flex h-16 items-center lg:hidden"
+  <nav className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-30 flex h-16 items-center lg:hidden"
     style={{
       background: "rgba(15,17,21,0.97)",
       borderTop: "1px solid var(--border-light)",
       backdropFilter: "blur(16px)",
-      paddingBottom: "env(safe-area-inset-bottom)",
+      paddingBottom: "max(8px, env(safe-area-inset-bottom))",
       boxShadow: "0 -4px 24px rgba(0,0,0,0.35)"
     }}>
     {items.map(({ to, label, Icon }) => (

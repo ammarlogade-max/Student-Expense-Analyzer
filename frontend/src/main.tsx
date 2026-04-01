@@ -17,6 +17,18 @@ if (storedTheme === "light") {
 
 async function bootstrap() {
   await restoreFromPreferences();
+  const isCapacitorNative = (window as any).Capacitor?.isNativePlatform?.() === true;
+  if (isCapacitorNative) {
+    document.documentElement.classList.add("platform-capacitor");
+    try {
+      const { StatusBar, Style } = await import("@capacitor/status-bar");
+      await StatusBar.setOverlaysWebView({ overlay: false });
+      await StatusBar.setStyle({ style: Style.Dark });
+      await StatusBar.setBackgroundColor({ color: "#0f1115" });
+    } catch {
+      // ignore when status bar plugin is unavailable
+    }
+  }
 
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>

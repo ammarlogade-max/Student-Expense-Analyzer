@@ -31,7 +31,7 @@ const BudgetPage = () => {
   const [status, setStatus] = useState<BudgetStatus | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "categories" | "forecast">("overview");
+  const [activeTab, setActiveTab] = useState<"categories" | "forecast">("categories");
 
   const loadAll = useCallback(async () => {
     const cacheKey = "budget:overview";
@@ -108,7 +108,6 @@ const BudgetPage = () => {
   const sc = statusColor(pct);
 
   const tabs = [
-    { id: "overview" as const, label: "Overview" },
     { id: "categories" as const, label: "Categories" },
     { id: "forecast" as const, label: "Forecast" },
   ];
@@ -131,7 +130,7 @@ const BudgetPage = () => {
               Monthly Budget
             </p>
             <p className="text-3xl font-bold" style={{ fontFamily: "var(--font-display)", color: sc }}>
-              ?{monthlyLimit.toLocaleString("en-IN")}
+              ₹{monthlyLimit.toLocaleString("en-IN")}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">
@@ -139,7 +138,7 @@ const BudgetPage = () => {
               {statusLabel(pct)}
             </span>
             <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-              ?{totalSpent.toLocaleString("en-IN")} spent
+              ₹{totalSpent.toLocaleString("en-IN")} spent
             </p>
           </div>
         </div>
@@ -150,7 +149,7 @@ const BudgetPage = () => {
         <div className="mt-2 flex items-center justify-between text-xs">
           <span style={{ color: "var(--text-tertiary)" }}>{pct.toFixed(1)}% used</span>
           <span style={{ color: remaining < 0 ? "var(--error)" : "var(--success)" }}>
-            {remaining < 0 ? `Over by ?${Math.abs(remaining).toLocaleString("en-IN")}` : `?${remaining.toLocaleString("en-IN")} remaining`}
+            {remaining < 0 ? `Over by ₹${Math.abs(remaining).toLocaleString("en-IN")}` : `₹${remaining.toLocaleString("en-IN")} remaining`}
           </span>
         </div>
 
@@ -170,14 +169,6 @@ const BudgetPage = () => {
         ))}
       </div>
 
-      {activeTab === "overview" && (
-        <div className="card">
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            Current budget is read-only on this page.
-          </p>
-        </div>
-      )}
-
       {activeTab === "categories" && (
         <div className="space-y-3">
           {categories.map((cat) => {
@@ -194,7 +185,7 @@ const BudgetPage = () => {
                     {cat}
                   </span>
                   <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                    ?{spent.toLocaleString("en-IN")} / ?{savedLimit.toLocaleString("en-IN")}
+                    ₹{spent.toLocaleString("en-IN")} / ₹{savedLimit.toLocaleString("en-IN")}
                   </span>
                 </div>
                 <div className="progress-track">
@@ -202,7 +193,7 @@ const BudgetPage = () => {
                 </div>
                 {catStatus?.isOver && (
                   <p className="mt-2 text-xs" style={{ color: "var(--error)" }}>
-                    Over budget by ?{Math.abs(catStatus.remaining).toLocaleString("en-IN")}
+                    Over budget by ₹{Math.abs(catStatus.remaining).toLocaleString("en-IN")}
                   </p>
                 )}
               </div>
@@ -225,7 +216,7 @@ const BudgetPage = () => {
             <div className="rounded-xl px-3 py-2 text-sm" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-light)" }}>
               <span style={{ color: "var(--text-tertiary)" }}>Forecast: </span>
               <span className="font-bold" style={{ color: "var(--text-primary)" }}>
-                ?{forecastTotal.toFixed(0)}
+                ₹{forecastTotal.toFixed(0)}
               </span>
             </div>
           </div>
@@ -246,7 +237,7 @@ const BudgetPage = () => {
                     stroke="rgba(255,255,255,0.1)"
                     tick={{ fontSize: 10, fill: "var(--text-tertiary)" }}
                     width={50}
-                    tickFormatter={(v) => `?${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+                    tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
                   />
                   <Tooltip contentStyle={{ background: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 12, color: "var(--text-primary)" }} />
                   <Line type="monotone" dataKey="actual" stroke="#6366f1" strokeWidth={2.5} dot={false} name="Actual" />

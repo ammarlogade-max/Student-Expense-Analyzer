@@ -116,6 +116,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /* Safe area for notched phones */
+  padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   transition: background-color 0.25s ease, color 0.25s ease;
   overflow-x: hidden;
@@ -472,6 +473,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 @media (max-width: 767px) {
   body { padding-bottom: max(64px, env(safe-area-inset-bottom)); }
   button, a, input, select, textarea { min-height: 44px; }
+}
+
+.platform-capacitor body {
+  padding-top: max(8px, env(safe-area-inset-top));
+  padding-bottom: max(76px, env(safe-area-inset-bottom));
 }
 
 /* ─── Progress bar ───────────────────────────────────────────────────────────── */

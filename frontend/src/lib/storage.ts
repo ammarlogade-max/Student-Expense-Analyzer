@@ -96,6 +96,34 @@ export function setCsrfToken(token: string | null) {
   void prefSet(CSRF_KEY, token);
 }
 
+export async function persistSessionSnapshot(params: {
+  token: string | null;
+  refreshToken: string | null;
+  userRaw: string | null;
+  csrfToken: string | null;
+}): Promise<void> {
+  const { token, refreshToken, userRaw, csrfToken } = params;
+
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+
+  if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
+  else localStorage.removeItem(REFRESH_KEY);
+
+  if (userRaw) localStorage.setItem(USER_KEY, userRaw);
+  else localStorage.removeItem(USER_KEY);
+
+  if (csrfToken) localStorage.setItem(CSRF_KEY, csrfToken);
+  else localStorage.removeItem(CSRF_KEY);
+
+  await Promise.all([
+    prefSet(TOKEN_KEY, token),
+    prefSet(REFRESH_KEY, refreshToken),
+    prefSet(USER_KEY, userRaw),
+    prefSet(CSRF_KEY, csrfToken),
+  ]);
+}
+
 export async function restoreFromPreferences(): Promise<void> {
   if (!isCapacitorNative()) return;
 

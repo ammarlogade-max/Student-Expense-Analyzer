@@ -20,7 +20,6 @@ const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Score = lazy(() => import("./pages/Score"));
 const NotificationVoice = lazy(() => import("./pages/NotificationVoice"));
 const NotificationText = lazy(() => import("./pages/NotificationText"));
-const SmsAuto = lazy(() => import("./pages/SmsAuto"));
 const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
@@ -76,7 +75,7 @@ function App() {
             <Route path="/budget" element={<BudgetPage />} />
             <Route path="/cash" element={<Cash />} />
             <Route path="/sms-parser" element={<SmsParser />} />
-            <Route path="/sms-auto" element={<SmsAuto />} />
+            <Route path="/sms-auto" element={<Navigate to="/sms-parser" replace />} />
             <Route path="/score" element={<Score />} />
             <Route path="/settings" element={<Settings />} />
           </Route>

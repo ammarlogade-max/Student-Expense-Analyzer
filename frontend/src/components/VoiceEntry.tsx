@@ -59,6 +59,8 @@ interface VoiceEntryProps {
 export const VoiceEntry = ({ onSaved }: VoiceEntryProps) => {
   const { push } = useToast();
   const recognitionRef = useRef<any>(null);
+  const nativeSpeechRef = useRef<{ stop: () => Promise<void> } | null>(null);
+  const nativeSpeechListenerRef = useRef<{ remove: () => Promise<void> } | null>(null);
 
   const [state, setState] = useState<VoiceState>("idle");
   const [liveText, setLiveText] = useState(""); // interim (while speaking)
@@ -89,6 +91,14 @@ export const VoiceEntry = ({ onSaved }: VoiceEntryProps) => {
       try { recognitionRef.current.stop(); } catch {}
       recognitionRef.current = null;
     }
+    if (nativeSpeechRef.current) {
+      nativeSpeechRef.current.stop().catch(() => {});
+      nativeSpeechRef.current = null;
+    }
+    if (nativeSpeechListenerRef.current) {
+      nativeSpeechListenerRef.current.remove().catch(() => {});
+      nativeSpeechListenerRef.current = null;
+    }
   }, []);
 
   // Cleanup on unmount
@@ -100,6 +110,48 @@ export const VoiceEntry = ({ onSaved }: VoiceEntryProps) => {
     setLiveText("");
     setFinalText("");
     setParsed(null);
+
+    const isCapacitorNative = (window as any).Capacitor?.isNativePlatform?.() === true;
+
+    if (isCapacitorNative) {
+      setState("requesting");
+      try {
+        const speechModule = await import("@capacitor-community/speech-recognition");
+        const SpeechRecognition = speechModule.SpeechRecognition;
+        const permission = await SpeechRecognition.requestPermissions();
+        if (permission.speechRecognition !== "granted") {
+          setState("idle");
+          setError("Microphone permission denied. Please allow microphone in app settings.");
+          return;
+        }
+
+        const listener = await SpeechRecognition.addListener("partialResults", (data: any) => {
+          const transcript = (data?.matches?.[0] ?? "").trim();
+          if (!transcript) return;
+          setLiveText(transcript);
+          setFinalText(transcript);
+        });
+        nativeSpeechListenerRef.current = listener;
+
+        nativeSpeechRef.current = {
+          stop: () => SpeechRecognition.stop(),
+        };
+
+        setState("listening");
+        await SpeechRecognition.start({
+          language: "en-IN",
+          maxResults: 1,
+          prompt: "Speak your expense",
+          partialResults: true,
+          popup: false,
+        });
+        return;
+      } catch (err: any) {
+        setState("idle");
+        setError(err?.message || "Voice recognition failed on this device.");
+        return;
+      }
+    }
 
     // Check support
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;

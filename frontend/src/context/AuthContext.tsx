@@ -21,6 +21,7 @@ import {
   getRefreshToken,
   getStoredUser,
   getToken,
+  persistSessionSnapshot,
   setCsrfToken,
   setRefreshToken,
   setStoredUser,
@@ -69,11 +70,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (refreshToken) {
         try {
           const refreshed = await refreshSession(refreshToken);
-          setToken(refreshed.token);
-          setRefreshToken(refreshed.refreshToken);
-          setCsrfToken(refreshed.csrfToken ?? null);
+          await persistSessionSnapshot({
+            token: refreshed.token,
+            refreshToken: refreshed.refreshToken,
+            userRaw: null,
+            csrfToken: refreshed.csrfToken ?? null,
+          });
           setTokenState(refreshed.token);
           const { user: me } = await getMe();
+          await persistSessionSnapshot({
+            token: refreshed.token,
+            refreshToken: refreshed.refreshToken,
+            userRaw: JSON.stringify(me),
+            csrfToken: refreshed.csrfToken ?? null,
+          });
           setUser(me);
           setStoredUser(me);
         } catch {
@@ -102,6 +112,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const result = await apiLogin(email, password);
+    await persistSessionSnapshot({
+      token: result.token,
+      refreshToken: result.refreshToken,
+      userRaw: JSON.stringify(result.user),
+      csrfToken: result.csrfToken ?? null,
+    });
     setToken(result.token);
     setRefreshToken(result.refreshToken);
     setCsrfToken(result.csrfToken ?? null);
@@ -114,6 +130,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (name: string, email: string, password: string) => {
       await apiSignup(name, email, password);
       const result = await apiLogin(email, password);
+      await persistSessionSnapshot({
+        token: result.token,
+        refreshToken: result.refreshToken,
+        userRaw: JSON.stringify(result.user),
+        csrfToken: result.csrfToken ?? null,
+      });
       setToken(result.token);
       setRefreshToken(result.refreshToken);
       setCsrfToken(result.csrfToken ?? null);

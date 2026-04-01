@@ -18,6 +18,22 @@ function ChevronRight() {
   );
 }
 
+function NavIcon({ kind }: { kind: "dashboard" | "score" | "budget" | "sms" | "onboarding" }) {
+  if (kind === "dashboard") {
+    return <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
+  }
+  if (kind === "score") {
+    return <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>;
+  }
+  if (kind === "budget") {
+    return <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg>;
+  }
+  if (kind === "sms") {
+    return <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>;
+  }
+  return <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0012.933 5.303M19.5 12A7.5 7.5 0 006.567 6.697M15 3h6v6M9 21H3v-6" /></svg>;
+}
+
 const Settings = () => {
   useFeatureTracking("settings", "Viewed settings");
   const { user, logout } = useAuth();
@@ -41,14 +57,14 @@ const Settings = () => {
   ];
 
   const quickLinks = [
-    { label: "Dashboard", sub: "Overview of your finances", icon: "??", to: "/dashboard" },
-    { label: "Finance Score", sub: "View your behavioral score", icon: "??", to: "/score" },
-    { label: "Budget", sub: "Read-only tracking page", icon: "??", to: "/budget" },
-    { label: "SMS Parser", sub: "Parse bank transaction SMS", icon: "??", to: "/sms-parser" },
+    { label: "Dashboard", sub: "Overview of your finances", kind: "dashboard" as const, to: "/dashboard" },
+    { label: "Finance Score", sub: "View your behavioral score", kind: "score" as const, to: "/score" },
+    { label: "Budget", sub: "Read-only tracking page", kind: "budget" as const, to: "/budget" },
+    { label: "SMS Parser", sub: "Parse bank transaction SMS", kind: "sms" as const, to: "/sms-parser" },
     {
       label: "Redo Onboarding",
       sub: "Update your profile setup",
-      icon: "??",
+      kind: "onboarding" as const,
       action: () => {
         sessionStorage.removeItem("expenseiq_onboarding_done");
         navigate("/onboarding");
@@ -196,7 +212,9 @@ const Settings = () => {
               e.currentTarget.style.color = "var(--text-secondary)";
             }}
           >
-            <span className="text-lg">{link.icon}</span>
+            <span style={{ color: "var(--text-tertiary)" }}>
+              <NavIcon kind={link.kind} />
+            </span>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                 {link.label}
@@ -269,7 +287,7 @@ const Settings = () => {
           <div className="space-y-4">
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
-                Monthly Budget (?)
+                Monthly Budget (₹)
               </label>
               <input
                 type="number"
@@ -305,7 +323,7 @@ const Settings = () => {
                 ))}
               </div>
               <p className="mt-2 text-xs" style={{ color: "var(--text-tertiary)" }}>
-                Total category budgets: ?{totalCategoryBudget.toLocaleString("en-IN")}
+                Total category budgets: ₹{totalCategoryBudget.toLocaleString("en-IN")}
               </p>
             </div>
 

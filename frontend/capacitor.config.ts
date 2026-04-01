@@ -26,6 +26,7 @@ const config: CapacitorConfig = {
     StatusBar: {
       style:           "Dark",
       backgroundColor: "#0f1115",
+      overlaysWebView: false,
     },
     // ── Splash Screen ─────────────────────────────────────────────────────
     SplashScreen: {

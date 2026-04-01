@@ -173,6 +173,26 @@ export function useSmsPermission() {
     setIsCapacitor(isNativePlatform());
   }, []);
 
+  useEffect(() => {
+    if (!isCapacitor) return;
+    let active = true;
+
+    const probePermission = async () => {
+      try {
+        const { SmsPlugin } = await import("../plugins/SmsPlugin");
+        await SmsPlugin.getMessages({ since: Date.now() - 24 * 60 * 60 * 1000 });
+        if (active) setHasPermission(true);
+      } catch {
+        if (active) setHasPermission(false);
+      }
+    };
+
+    void probePermission();
+    return () => {
+      active = false;
+    };
+  }, [isCapacitor]);
+
   const requestPermissions = useCallback(async (): Promise<boolean> => {
     if (!isNativePlatform()) {
       push("SMS auto-parse requires Android app", "info");
@@ -228,15 +248,22 @@ export function useSmsPermission() {
 
       const BATCH = 10;
       let done = 0;
+      let saved = 0;
 
       for (let i = 0; i < bankMessages.length; i += BATCH) {
         const batch = bankMessages.slice(i, i + BATCH);
-        await Promise.all(batch.map((msg) => parseSmsOnBackend(msg.body)));
+        const responses = await Promise.all(batch.map((msg) => parseSmsOnBackend(msg.body)));
+        saved += responses.filter((res) => res?.saved === true).length;
         done += batch.length;
         setImportProgress({ done, total: bankMessages.length });
       }
 
-      push(`Imported ${done} expenses from SMS history`, "success");
+      push(
+        saved > 0
+          ? `Imported ${saved} expenses from SMS history (${done} parsed)`
+          : `Parsed ${done} SMS, but none were confident enough to auto-save`,
+        saved > 0 ? "success" : "info"
+      );
     } catch (err) {
       console.error("[SMS] Inbox import failed:", err);
       push("Failed to read SMS inbox", "error");
