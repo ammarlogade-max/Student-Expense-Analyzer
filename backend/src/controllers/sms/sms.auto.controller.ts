@@ -3,6 +3,15 @@ import prisma from "../../config/prisma";
 import { parseSmsAndPredict } from "../../services/ml/ml.service";
 
 const CONFIDENCE_THRESHOLD = 0.6;
+const FALLBACK_DEBIT_THRESHOLD = 0.55;
+
+function hasClearDebitPattern(smsText: string): boolean {
+  const lower = smsText.toLowerCase();
+  const hasDebitVerb = /\b(debited|spent|paid|purchase|txn|transaction|withdrawn|dr\.?)\b/.test(lower);
+  const hasAmount = /(?:₹|rs\.?|inr)\s*[\d,]+(?:\.\d{1,2})?/i.test(smsText);
+  const isCreditOnly = /\b(credited|salary|refund|cashback|interest)\b/.test(lower) && !hasDebitVerb;
+  return hasDebitVerb && hasAmount && !isCreditOnly;
+}
 
 type AuthReq = Request & { user?: { userId: string; email: string } };
 
@@ -41,13 +50,16 @@ export async function autoIngestSms(req: AuthReq, res: Response) {
       });
     }
 
-    if (confidence >= CONFIDENCE_THRESHOLD) {
+    const isClearDebit = hasClearDebitPattern(smsText);
+    const shouldAutoSave = confidence >= CONFIDENCE_THRESHOLD || (isClearDebit && confidence >= FALLBACK_DEBIT_THRESHOLD);
+
+    if (shouldAutoSave) {
       const expense = await prisma.expense.create({
         data: {
           userId,
           amount,
-          category,
-          description: merchant ?? "SMS auto-import",
+          category: category || "Other",
+          description: merchant?.trim() ? merchant : "Bank debit SMS",
           source: "sms",
         },
       });

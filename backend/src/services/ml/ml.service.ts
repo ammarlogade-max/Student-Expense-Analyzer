@@ -73,17 +73,18 @@ function ruleBasedCategory(merchant: string): string {
 }
 
 function ruleBasedSms(smsText: string): SmsPrediction {
-  const amountMatch = smsText.match(/(?:rs\.?|inr|₹)\s*(\d+(?:\.\d{1,2})?)/i);
-  const dateMatch = smsText.match(/(\d{2}[-/]\d{2}[-/]\d{4})/);
+  const amountMatch  = smsText.match(/(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{1,2})?)/i);
+  const dateMatch    = smsText.match(/(\d{2}[-/]\d{2}[-/]\d{4})/);
   const merchantMatch = smsText.match(
     /(?:at|to|for|on)\s+([A-Za-z0-9\s&.\-]+?)(?=\.|at|on|using|via|txn|ref|$)/i
   );
+  const bankSuffixMatch = smsText.match(/-\s*([A-Za-z][A-Za-z0-9]{2,})\s*$/);
   const isAtm = /atm|cash\s*withdraw/i.test(smsText);
 
-  const merchant = merchantMatch ? merchantMatch[1].trim() : "";
+  const merchant = merchantMatch ? merchantMatch[1].trim() : bankSuffixMatch ? bankSuffixMatch[1].trim() : "";
   return {
-    amount: amountMatch ? amountMatch[1] : null,
-    date: dateMatch ? dateMatch[1] : null,
+    amount:     amountMatch ? amountMatch[1].replace(/,/g, "") : null,
+    date:       dateMatch ? dateMatch[1] : null,
     merchant,
     category: isAtm ? "Other" : ruleBasedCategory(merchant),
     confidence: 0,
