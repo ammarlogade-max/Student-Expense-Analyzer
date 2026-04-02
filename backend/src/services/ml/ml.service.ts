@@ -112,7 +112,9 @@ function ruleBasedCategory(merchant: string): string {
 }
 
 function ruleBasedSms(smsText: string): SmsPrediction {
-  const amountMatch  = smsText.match(/(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{1,2})?)/i);
+  const amountMatch =
+    smsText.match(/(?:rs\.?|inr|\u20B9)\s*([\d,]+(?:\.\d{1,2})?)/i) ||
+    smsText.match(/\?\s*([\d,]+(?:\.\d{1,2})?)/);
   const dateMatch    = smsText.match(/(\d{2}[-/]\d{2}[-/]\d{4})/);
   const merchantMatch = smsText.match(
     /(?:at|to|for|on)\s+([A-Za-z0-9\s&.\-]+?)(?=\.|at|on|using|via|txn|ref|$)/i

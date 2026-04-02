@@ -18,7 +18,7 @@ const catColors: Record<string, string> = {
 
 const EXAMPLES = [
   { bank: "Swiggy / HDFC", sms: "Dear Customer, INR 450.00 debited from A/c XX1234 on 28-Feb at Swiggy. Avl Bal: INR 8,220.00" },
-  { bank: "Ola / HDFC", sms: "?280 spent on Ola using HDFC Debit Card XX9876. Available balance: ?12,450" },
+  { bank: "Ola / HDFC", sms: "₹280 spent on Ola using HDFC Debit Card XX9876. Available balance: ₹12,450" },
   { bank: "ATM / ICICI", sms: "Rs.1200.00 withdrawn from ATM on 27-Feb-26. Avl Bal Rs.7350.00 ICICI Bank" },
 ];
 
@@ -193,7 +193,7 @@ const SmsParser = () => {
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
             {[
-              { label: "Amount", value: result.amount ? `?${parseFloat(result.amount).toLocaleString("en-IN")}` : "-", color: "var(--primary)" },
+              { label: "Amount", value: result.amount ? `₹${parseFloat(result.amount).toLocaleString("en-IN")}` : "-", color: "var(--primary)" },
               { label: "Merchant", value: result.merchant || "Unknown", color: "var(--accent)" },
               { label: "Date", value: result.date || "Today", color: "var(--warning)" },
               { label: "Type", value: result.type === "cash_withdrawal" ? "ATM Withdrawal" : "Expense", color: result.type === "cash_withdrawal" ? "var(--warning)" : "var(--info)" },

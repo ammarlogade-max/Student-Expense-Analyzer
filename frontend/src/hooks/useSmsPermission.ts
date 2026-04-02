@@ -58,7 +58,8 @@ const DEBIT_KEYWORDS =
 const CREDIT_ONLY_KEYWORDS =
   /\b(credited|credit|salary|refund|cashback|reversal|reward|interest)\b/i;
 const OTP_KEYWORDS = /\b(otp|one[-\s]?time password|do not share|never share)\b/i;
-const AMOUNT_PATTERN = /(?:₹|rs\.?|inr)\s*[\d,]+(?:\.\d{1,2})?/i;
+const AMOUNT_PATTERN =
+  /(?:(?:₹|rs\.?|inr)\s*[\d,]+(?:\.\d{1,2})?|\?\s*[\d,]+(?:\.\d{1,2})?)/i;
 
 function normalizeSender(address: string): string {
   return (address || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
