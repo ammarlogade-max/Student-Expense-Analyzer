@@ -37,6 +37,45 @@ export interface BatchPrediction {
   duration_ms: number;
 }
 
+function isLikelyDateToken(value: string): boolean {
+  const v = value.trim();
+  return (
+    /^\d{1,2}[-/]\d{1,2}(?:[-/]\d{2,4})?$/.test(v) ||
+    /^\d{1,2}-(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$/i.test(v)
+  );
+}
+
+function extractMerchantFromSmsText(smsText: string): string | null {
+  const m =
+    smsText.match(/\bat\s+([A-Za-z][A-Za-z0-9&.\- ]{1,40})(?=\.|,|\s(?:avl|bal|on|using|via|ref)\b|$)/i) ||
+    smsText.match(/\bto\s+([A-Za-z][A-Za-z0-9&.\- ]{1,40})(?=\.|,|\s(?:avl|bal|on|using|via|ref)\b|$)/i);
+  return m?.[1]?.trim() || null;
+}
+
+function normalizeSmsPrediction(parsed: SmsPrediction, smsText: string): SmsPrediction {
+  let merchant = (parsed.merchant || "").trim();
+
+  if (!merchant || isLikelyDateToken(merchant)) {
+    const merchantFromText = extractMerchantFromSmsText(smsText);
+    if (merchantFromText) {
+      merchant = merchantFromText;
+    }
+  }
+
+  const category =
+    parsed.type === "cash_withdrawal"
+      ? "Other"
+      : parsed.category && parsed.category !== "Uncategorized"
+        ? parsed.category
+        : ruleBasedCategory(merchant || smsText);
+
+  return {
+    ...parsed,
+    merchant,
+    category
+  };
+}
+
 async function mlFetch<T>(path: string, body: unknown): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -180,7 +219,8 @@ export async function parseSmsAndPredict(
   const startedAt = Date.now();
 
   try {
-    const result = await mlFetch<SmsPrediction>("/predict/sms", { sms_text: smsText });
+    const rawResult = await mlFetch<SmsPrediction>("/predict/sms", { sms_text: smsText });
+    const result = normalizeSmsPrediction(rawResult, smsText);
 
     if (options.shouldLog !== false) {
       await logMLRequest({
@@ -210,7 +250,7 @@ export async function parseSmsAndPredict(
 
     return result;
   } catch (error) {
-    const fallback = ruleBasedSms(smsText);
+    const fallback = normalizeSmsPrediction(ruleBasedSms(smsText), smsText);
 
     if (options.shouldLog !== false) {
       await logMLRequest({

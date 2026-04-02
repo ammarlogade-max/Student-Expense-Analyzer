@@ -148,7 +148,7 @@ const SmsParser = () => {
       <div className="card space-y-4">
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--text-secondary)" }}>Bank Transaction SMS</label>
-          <textarea value={smsText} onChange={(e) => setSmsText(e.target.value)} rows={4} placeholder="Paste your bank SMS here  e.g. 'INR 450.00 debited from A/c XX1234 at Swiggy...'" style={{ resize: "none" }} />
+          <textarea value={smsText} onChange={(e) => setSmsText(e.target.value)} rows={4} placeholder="Paste your bank SMS here - e.g. 'INR 450.00 debited from A/c XX1234 at Swiggy...'" style={{ resize: "none" }} />
         </div>
 
         <div>
@@ -193,7 +193,7 @@ const SmsParser = () => {
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
             {[
-              { label: "Amount", value: result.amount ? `?${parseFloat(result.amount).toLocaleString("en-IN")}` : "", color: "var(--primary)" },
+              { label: "Amount", value: result.amount ? `?${parseFloat(result.amount).toLocaleString("en-IN")}` : "-", color: "var(--primary)" },
               { label: "Merchant", value: result.merchant || "Unknown", color: "var(--accent)" },
               { label: "Date", value: result.date || "Today", color: "var(--warning)" },
               { label: "Type", value: result.type === "cash_withdrawal" ? "ATM Withdrawal" : "Expense", color: result.type === "cash_withdrawal" ? "var(--warning)" : "var(--info)" },
@@ -222,7 +222,7 @@ const SmsParser = () => {
 
           <button onClick={handleSave} disabled={saving} className="btn-primary w-full">
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-            {saving ? "Saving..." : "Save as Expense ?"}
+            {saving ? "Saving..." : "Save as Expense"}
           </button>
         </div>
       )}
@@ -230,4 +230,4 @@ const SmsParser = () => {
   );
 };
 
-export default SmsParser;
+export default SmsParser;
