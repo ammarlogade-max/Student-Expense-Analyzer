@@ -6,7 +6,7 @@ import type {
   MonthlySummary,
   User,
 } from "./types";
-import { getCsrfToken, getToken } from "./storage";
+import { getCsrfToken, getToken, setCsrfToken } from "./storage";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 
@@ -35,24 +35,58 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
   const isIdempotent = ["GET", "HEAD", "OPTIONS"].includes(method);
   const maxAttempts = isIdempotent ? RETRY_DELAYS_MS.length + 1 : 1;
+  const isMutatingAuthRequest = Boolean(options.auth) && !["GET", "HEAD", "OPTIONS"].includes(method);
 
-  let res: Response | null = null;
+  const executeRequest = async (): Promise<Response | null> => {
+    let response: Response | null = null;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        response = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    try {
-      res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+        // Retry transient server errors only for idempotent requests.
+        if (isIdempotent && response.status >= 500 && attempt < maxAttempts - 1) {
+          await sleep(RETRY_DELAYS_MS[attempt]);
+          continue;
+        }
 
-      // Retry transient server errors only for idempotent requests.
-      if (isIdempotent && res.status >= 500 && attempt < maxAttempts - 1) {
+        break;
+      } catch {
+        if (!isIdempotent || attempt >= maxAttempts - 1) break;
+        if (navigator.onLine === false) break;
         await sleep(RETRY_DELAYS_MS[attempt]);
-        continue;
       }
+    }
+    return response;
+  };
 
-      break;
-    } catch {
-      if (!isIdempotent || attempt >= maxAttempts - 1) break;
-      if (navigator.onLine === false) break;
-      await sleep(RETRY_DELAYS_MS[attempt]);
+  let res: Response | null = await executeRequest();
+
+  // CSRF can drift when backend restarts or user is routed to another instance.
+  // Auto-refresh token once and retry mutating authenticated requests.
+  if (res?.status === 403 && isMutatingAuthRequest) {
+    const isJson = res.headers.get("content-type")?.includes("application/json");
+    const data = isJson ? await res.json() : null;
+    const message = String(data?.message || data?.error || "").toLowerCase();
+
+    if (message.includes("csrf")) {
+      try {
+        const token = getToken();
+        const csrfRes = await fetch(`${API_BASE}/auth/csrf`, {
+          method: "GET",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (csrfRes.ok) {
+          const csrfData = await csrfRes.json();
+          const nextCsrf = csrfData?.csrfToken as string | undefined;
+          if (nextCsrf) {
+            setCsrfToken(nextCsrf);
+            headers["x-csrf-token"] = nextCsrf;
+            res = await executeRequest();
+          }
+        }
+      } catch {
+        // Fall through to the standard error handling below.
+      }
     }
   }
 

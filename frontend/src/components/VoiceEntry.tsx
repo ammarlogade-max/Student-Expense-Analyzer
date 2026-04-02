@@ -81,8 +81,9 @@ export const VoiceEntry = ({ onSaved }: VoiceEntryProps) => {
 
   // Check browser support
   useEffect(() => {
+    const isCapacitorNative = (window as any).Capacitor?.isNativePlatform?.() === true;
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    setSupported(Boolean(SR));
+    setSupported(isCapacitorNative || Boolean(SR));
   }, []);
 
   // ── Stop any active recognition ──────────────────────────────────────────
