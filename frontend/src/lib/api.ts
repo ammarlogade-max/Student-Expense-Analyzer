@@ -268,21 +268,32 @@ export async function parseSms(smsText: string) {
 }
 
 export async function ingestSms(smsText: string) {
-  return request<{
-    result: {
-      amount: string | null;
-      date: string | null;
-      merchant: string;
-      category: string;
-      type: "cash_withdrawal" | "expense";
-    };
-    wallet?: CashWallet;
-    cashTransaction?: CashTransaction;
-  }>("/ml/ingest-sms", {
+  const res = await request<{
+    saved: boolean;
+    amount: number | null;
+    date: string | null;
+    merchant: string | null;
+    category: string | null;
+    confidence: number;
+    reason?: "no_valid_expense" | "low_confidence";
+  }>("/sms/auto-ingest", {
     method: "POST",
     auth: true,
     body: JSON.stringify({ smsText }),
   });
+
+  return {
+    saved: res.saved,
+    confidence: res.confidence,
+    reason: res.reason,
+    result: {
+      amount: res.amount !== null ? String(res.amount) : null,
+      date: res.date,
+      merchant: res.merchant || "Unknown",
+      category: res.category || "Other",
+      type: "expense" as const,
+    },
+  };
 }
 
 // ── Cash Wallet (Step 2) ──────────────────────────────────────────────────────

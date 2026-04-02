@@ -71,8 +71,17 @@ const SmsParser = () => {
     if (!smsText.trim()) { push("Paste an SMS first", "error"); return; }
     setLoading(true); setResult(null);
     try {
-      const res = await ingestSms(smsText); setResult(res.result); setSelectedCategory(res.result.category || "Other");
-      push(res.result.type === "cash_withdrawal" ? "Cash withdrawal recorded" : "Expense added automatically", "success");
+      const res = await ingestSms(smsText);
+      setResult(res.result);
+      setSelectedCategory(res.result.category || "Other");
+
+      if (res.saved) {
+        push("Expense added automatically", "success");
+      } else if (res.reason === "low_confidence") {
+        push(`Detected transaction, but confidence was low (${Math.round((res.confidence || 0) * 100)}%). Review and save manually.`, "info");
+      } else {
+        push("Could not confirm this as a debit expense. Try Parse Only and review fields.", "info");
+      }
     } catch (err: any) { push(err.message || "Ingest failed", "error"); }
     finally { setLoading(false); }
   };
@@ -139,7 +148,7 @@ const SmsParser = () => {
       <div className="card space-y-4">
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--text-secondary)" }}>Bank Transaction SMS</label>
-          <textarea value={smsText} onChange={(e) => setSmsText(e.target.value)} rows={4} placeholder="Paste your bank SMS here — e.g. 'INR 450.00 debited from A/c XX1234 at Swiggy...'" style={{ resize: "none" }} />
+          <textarea value={smsText} onChange={(e) => setSmsText(e.target.value)} rows={4} placeholder="Paste your bank SMS here Â— e.g. 'INR 450.00 debited from A/c XX1234 at Swiggy...'" style={{ resize: "none" }} />
         </div>
 
         <div>
@@ -184,7 +193,7 @@ const SmsParser = () => {
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
             {[
-              { label: "Amount", value: result.amount ? `?${parseFloat(result.amount).toLocaleString("en-IN")}` : "—", color: "var(--primary)" },
+              { label: "Amount", value: result.amount ? `?${parseFloat(result.amount).toLocaleString("en-IN")}` : "Â—", color: "var(--primary)" },
               { label: "Merchant", value: result.merchant || "Unknown", color: "var(--accent)" },
               { label: "Date", value: result.date || "Today", color: "var(--warning)" },
               { label: "Type", value: result.type === "cash_withdrawal" ? "ATM Withdrawal" : "Expense", color: result.type === "cash_withdrawal" ? "var(--warning)" : "var(--info)" },
@@ -221,4 +230,4 @@ const SmsParser = () => {
   );
 };
 
-export default SmsParser;
+export default SmsParser;
