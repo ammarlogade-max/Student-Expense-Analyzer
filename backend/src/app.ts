@@ -23,6 +23,8 @@ import { logger } from "./utils/logger";
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 app.use(helmet());
 const configuredOrigins = env.CORS_ORIGIN
   .split(",")
