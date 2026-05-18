@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getFinanceScore, recalculateScore } from "../lib/api";
 import type { ScoreResponse } from "../lib/api";
 
@@ -37,9 +37,7 @@ function ScoreRing({
         strokeLinecap="round"
         strokeDasharray={circumference}
         strokeDashoffset={dashOffset}
-        style={{
-          transition: "stroke-dashoffset 1s ease",
-        }}
+        style={{ transition: "stroke-dashoffset 0.8s ease" }}
       />
     </svg>
   );
@@ -63,16 +61,10 @@ function ScoreBreakdownItem({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm">
           <span>{icon}</span>
-
-          <span style={{ color: "var(--text-primary)" }}>
-            {label}
-          </span>
+          <span style={{ color: "var(--text-primary)" }}>{label}</span>
         </div>
 
-        <span
-          className="text-xs font-semibold"
-          style={{ color }}
-        >
+        <span className="text-xs font-semibold" style={{ color }}>
           {value}/25
         </span>
       </div>
@@ -80,10 +72,7 @@ function ScoreBreakdownItem({
       <div className="progress-track">
         <div
           className="progress-bar"
-          style={{
-            width: `${percent}%`,
-            background: color,
-          }}
+          style={{ width: `${percent}%`, background: color }}
         />
       </div>
     </div>
@@ -98,28 +87,54 @@ const FinanceScoreCard = ({ compact = false }: Props) => {
   const [data, setData] = useState<ScoreResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const loadScore = useCallback(async (forceRefresh = false) => {
+    try {
+      setError("");
+
+      const response = forceRefresh
+        ? await recalculateScore()
+        : await getFinanceScore();
+
+      setData(response);
+      setLastUpdated(new Date());
+    } catch {
+      setError("Unable to load finance score");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    getFinanceScore()
-      .then(setData)
-      .finally(() => setLoading(false));
-  }, []);
+    void loadScore();
+  }, [loadScore]);
 
   const refreshScore = async () => {
     setRefreshing(true);
-
-    try {
-      const updated = await recalculateScore();
-      setData(updated);
-    } finally {
-      setRefreshing(false);
-    }
+    await loadScore(true);
   };
 
   if (loading) {
     return (
       <div className="card">
         <div className="skeleton h-[180px]" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="card text-center space-y-4">
+        <p className="text-sm" style={{ color: "var(--error)" }}>
+          {error}
+        </p>
+
+        <button onClick={() => loadScore()} className="btn-secondary">
+          Retry
+        </button>
       </div>
     );
   }
@@ -150,12 +165,29 @@ const FinanceScoreCard = ({ compact = false }: Props) => {
           </div>
 
           <div className="min-w-0 flex-1">
-            <h3
-              className="text-base font-bold"
-              style={{ color: "var(--text-primary)" }}
-            >
-              {score.level}
-            </h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3
+                className="text-base font-bold"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {score.level}
+              </h3>
+
+              {score.weeklyDelta !== 0 && (
+                <span
+                  className="text-xs font-semibold"
+                  style={{
+                    color:
+                      score.weeklyDelta > 0
+                        ? "var(--success)"
+                        : "var(--error)",
+                  }}
+                >
+                  {score.weeklyDelta > 0 ? "+" : ""}
+                  {score.weeklyDelta}
+                </span>
+              )}
+            </div>
 
             <p
               className="text-xs mt-1 truncate"
@@ -219,6 +251,15 @@ const FinanceScoreCard = ({ compact = false }: Props) => {
             >
               {score.insight}
             </p>
+
+            {lastUpdated && (
+              <p
+                className="text-xs mt-3"
+                style={{ color: "var(--text-tertiary)" }}
+              >
+                Updated at {lastUpdated.toLocaleTimeString()}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -276,7 +317,7 @@ const FinanceScoreCard = ({ compact = false }: Props) => {
         disabled={refreshing}
         className="btn-secondary w-full"
       >
-        {refreshing ? "Refreshing..." : "Refresh Score"}
+        {refreshing ? "Refreshing score..." : "Refresh Score"}
       </button>
     </div>
   );
