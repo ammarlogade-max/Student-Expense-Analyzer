@@ -5,7 +5,7 @@ import type { Expense } from "../lib/types";
 import { useToast } from "../context/ToastContext";
 import { useFeatureTracking } from "../hooks/useFeatureTracking";
 
-const palette = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#10b981", "#3b82f6", "#f97316", "#a78bfa"];
+const palette = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#10b981", "#3b82f6"];
 
 const Analytics = () => {
   useFeatureTracking("analytics", "Viewed analytics");
@@ -14,46 +14,17 @@ const Analytics = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [summaryByCategory, setSummaryByCategory] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [range, setRange] = useState({ startDate: "", endDate: "" });
   const [activeTab, setActiveTab] = useState<"trend" | "category" | "insights">("trend");
-
-  const exportCsv = () => {
-    if (!expenses.length) {
-      push("No data", "error");
-      return;
-    }
-
-    const csv = [
-      "category,amount,date",
-      ...expenses.map((e) => `${e.category},${e.amount},${new Date(e.createdAt).toISOString()}`),
-    ].join("\n");
-
-    const anchor = Object.assign(document.createElement("a"), {
-      href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })),
-      download: `expenses_${new Date().toISOString().slice(0, 10)}.csv`,
-    });
-
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-
-    push("Exported", "success");
-  };
 
   useEffect(() => {
     let active = true;
 
-    setLoading(true);
-
-    Promise.all([
-      getExpenses(range.startDate || range.endDate ? range : undefined),
-      getMonthlySummary(),
-    ])
-      .then(([eRes, sRes]) => {
+    Promise.all([getExpenses(), getMonthlySummary()])
+      .then(([expenseRes, summaryRes]) => {
         if (!active) return;
 
-        setExpenses(eRes.expenses);
-        setSummaryByCategory(sRes.summary.byCategory);
+        setExpenses(expenseRes.expenses || []);
+        setSummaryByCategory(summaryRes.summary.byCategory || {});
       })
       .catch(() => {
         push("Failed to load analytics", "error");
@@ -65,90 +36,201 @@ const Analytics = () => {
     return () => {
       active = false;
     };
-  }, [range]);
+  }, []);
 
-  const categoryData = useMemo(
-    () =>
-      Object.entries(summaryByCategory)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value),
-    [summaryByCategory]
-  );
+  const categoryData = useMemo(() => {
+    return Object.entries(summaryByCategory)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [summaryByCategory]);
 
-  const totalSpend = useMemo(
-    () => categoryData.reduce((sum, d) => sum + d.value, 0),
-    [categoryData]
-  );
-
-  const topCategory = categoryData[0];
-
-  const averageExpense = useMemo(() => {
-    if (!expenses.length) return 0;
-
-    return totalSpend / expenses.length;
-  }, [expenses, totalSpend]);
+  const totalSpend = useMemo(() => {
+    return categoryData.reduce((sum, item) => sum + item.value, 0);
+  }, [categoryData]);
 
   const monthlySeries = useMemo(() => {
-    const map = new Map<string, number>();
+    const grouped = new Map<string, number>();
 
-    expenses.forEach((e) => {
-      const d = new Date(e.createdAt);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    expenses.forEach((expense) => {
+      const date = new Date(expense.createdAt);
+      const key = `${date.getMonth() + 1}/${date.getFullYear()}`;
 
-      map.set(key, (map.get(key) || 0) + e.amount);
+      grouped.set(key, (grouped.get(key) || 0) + expense.amount);
     });
 
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, total]) => ({
-        month: month.slice(5),
-        total,
-      }));
+    return Array.from(grouped.entries()).map(([month, total]) => ({
+      month,
+      total,
+    }));
   }, [expenses]);
 
   const insights = useMemo(() => {
-    const list = [];
+    const topCategory = categoryData[0];
 
-    if (topCategory) {
-      list.push({
-        icon: "📊",
-        title: `${topCategory.name} is your highest expense category`,
-        text: `You spent ₹${topCategory.value.toLocaleString("en-IN")} on ${topCategory.name}.`,
-      });
-    }
+    return [
+      topCategory
+        ? {
+            title: "Highest spending category",
+            text: `${topCategory.name} contributes the highest expense with ₹${topCategory.value.toLocaleString("en-IN")}.`,
+          }
+        : null,
+      {
+        title: "Tracked expenses",
+        text: `${expenses.length} expenses have been tracked in the system.`,
+      },
+      {
+        title: "Average transaction",
+        text: expenses.length
+          ? `Average expense amount is ₹${(totalSpend / expenses.length).toFixed(0)}.`
+          : "No expense data available yet.",
+      },
+    ].filter(Boolean);
+  }, [categoryData, expenses, totalSpend]);
 
-    if (averageExpense > 0) {
-      list.push({
-        icon: "💳",
-        title: "Average transaction value",
-        text: `Your average expense amount is ₹${averageExpense.toFixed(0)}.`,
-      });
-    }
+  return (
+    <div className="space-y-5 pb-24 stagger">
+      <div>
+        <h1
+          className="text-2xl font-bold"
+          style={{
+            color: "var(--text-primary)",
+            fontFamily: "var(--font-display)",
+          }}
+        >
+          Analytics
+        </h1>
 
-    if (expenses.length > 0) {
-      list.push({
-        icon: "🧾",
-        title: "Expense tracking activity",
-        text: `You have tracked ${expenses.length} expense entries so far.`,
-      });
-    }
+        <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+          Visualize spending patterns and financial activity.
+        </p>
+      </div>
 
-    return list;
-  }, [topCategory, averageExpense, expenses]);
+      <div className="grid grid-cols-3 gap-3">
+        <div className="card text-center">
+          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+            Total Spend
+          </p>
 
-  const tabStyle = (tab: string) =>
-    activeTab === tab
-      ? {
-          background: "var(--gradient-primary)",
-          color: "#fff",
-          boxShadow: "0 2px 8px rgba(99,102,241,0.3)",
-        }
-      : {
-          background: "transparent",
-          color: "var(--text-secondary)",
-        };
+          <h3 className="text-lg font-bold mt-2" style={{ color: "var(--primary)" }}>
+            ₹{totalSpend.toLocaleString("en-IN")}
+          </h3>
+        </div>
 
-  return <div className="space-y-4 stagger">Analytics Updated</div>;
+        <div className="card text-center">
+          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+            Categories
+          </p>
+
+          <h3 className="text-lg font-bold mt-2" style={{ color: "var(--accent)" }}>
+            {categoryData.length}
+          </h3>
+        </div>
+
+        <div className="card text-center">
+          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+            Transactions
+          </p>
+
+          <h3 className="text-lg font-bold mt-2" style={{ color: "var(--warning)" }}>
+            {expenses.length}
+          </h3>
+        </div>
+      </div>
+
+      <div className="tab-bar">
+        {[
+          { id: "trend", label: "Trend" },
+          { id: "category", label: "Category" },
+          { id: "insights", label: "Insights" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`tab-item ${activeTab === tab.id ? "active" : ""}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "trend" && (
+        <div className="card">
+          <h2 className="text-base font-semibold mb-4">Monthly Trend</h2>
+
+          {loading ? (
+            <div className="skeleton h-56" />
+          ) : monthlySeries.length === 0 ? (
+            <div className="h-56 flex items-center justify-center text-sm">
+              No trend data available
+            </div>
+          ) : (
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthlySeries}>
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="total" stroke="#6366f1" strokeWidth={3} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "category" && (
+        <div className="space-y-4">
+          <div className="card flex items-center justify-center">
+            <div className="h-64 w-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={categoryData} dataKey="value" nameKey="name" outerRadius="80%">
+                    {categoryData.map((_, index) => (
+                      <Cell key={index} fill={palette[index % palette.length]} />
+                    ))}
+                  </Pie>
+
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {categoryData.map((item, index) => (
+            <div key={item.name} className="card !p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="h-3 w-3 rounded-full"
+                    style={{ background: palette[index % palette.length] }}
+                  />
+
+                  <span>{item.name}</span>
+                </div>
+
+                <span className="font-semibold">
+                  ₹{item.value.toLocaleString("en-IN")}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeTab === "insights" && (
+        <div className="space-y-3">
+          {insights.map((item: any) => (
+            <div key={item.title} className="card">
+              <h3 className="text-sm font-semibold mb-2">{item.title}</h3>
+              <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                {item.text}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default Analytics;
