@@ -1,34 +1,98 @@
 import FinanceScoreCard from "../components/FinanceScoreCard";
 import ScoreTrendChart from "../components/ScoreTrendChart";
+import { useNavigate } from "react-router-dom";
 
-/**
- * /score route — Full Finance Score page
- * Add to your router:
- *   <Route path="/score" element={<Score />} />
- * Add to your nav/sidebar:
- *   { label: "Score", icon: "🏆", path: "/score" }
- */
+const scoreTips = [
+  "Log expenses daily to improve consistency score.",
+  "Avoid overspending in one category frequently.",
+  "Maintain steady monthly spending habits.",
+  "Track cash expenses regularly for better accuracy.",
+];
+
 const Score = () => {
-  return (
-    <div className="space-y-4 max-w-2xl mx-auto stagger">
+  const navigate = useNavigate();
 
-      {/* Header */}
-      <div className="animate-fade-up">
-        <h1 className="text-2xl font-black mb-0.5"
-          style={{ fontFamily: "var(--font-display)" }}>
+  return (
+    <div className="space-y-5 pb-24 max-w-4xl mx-auto stagger">
+      <div>
+        <h1
+          className="text-2xl font-bold"
+          style={{
+            fontFamily: "var(--font-display)",
+            color: "var(--text-primary)",
+          }}
+        >
           Finance Score
         </h1>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Your daily financial health — updated every night
+
+        <p
+          className="text-sm mt-1"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          Understand your financial behavior and score trends.
         </p>
       </div>
 
-      {/* Main score card + breakdown + how-it-works */}
       <FinanceScoreCard compact={false} />
 
-      {/* Trend chart */}
-      <ScoreTrendChart />
+      <div className="card">
+        <div className="flex items-center justify-between mb-4 gap-3">
+          <div>
+            <h2
+              className="text-base font-semibold"
+              style={{ color: "var(--text-primary)" }}
+            >
+              Score Trends
+            </h2>
 
+            <p
+              className="text-xs mt-1"
+              style={{ color: "var(--text-tertiary)" }}
+            >
+              Track how your score changes over time.
+            </p>
+          </div>
+
+          <button
+            onClick={() => navigate("/analytics")}
+            className="text-xs font-semibold"
+            style={{ color: "var(--primary)" }}
+          >
+            Open Analytics
+          </button>
+        </div>
+
+        <ScoreTrendChart />
+      </div>
+
+      <div className="card">
+        <h2
+          className="text-base font-semibold mb-4"
+          style={{ color: "var(--text-primary)" }}
+        >
+          Improve Your Score
+        </h2>
+
+        <div className="space-y-3">
+          {scoreTips.map((tip) => (
+            <div
+              key={tip}
+              className="rounded-2xl p-4"
+              style={{
+                background: "var(--bg-tertiary)",
+                border: "1px solid var(--border-light)",
+              }}
+            >
+              <p
+                className="text-sm"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                {tip}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
